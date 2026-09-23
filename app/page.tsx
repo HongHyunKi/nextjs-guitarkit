@@ -24,6 +24,14 @@ type Feature = {
 
 const FEATURES: Feature[] = [
   {
+    id: 'lick-practice',
+    icon: Music,
+    title: '릭 연습',
+    description: '한 마디 듣고, 다음 한 마디에 따라 쳐보세요. TAB과 지판 가이드로 짧은 연주 구절을 익힙니다.',
+    href: '/lick-practice',
+    accent: 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
+  },
+  {
     id: 'scale',
     icon: AudioLines,
     title: '스케일 연습',

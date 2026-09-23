@@ -39,6 +39,8 @@ interface FretboardProps {
   displayMode?: DisplayMode
   highlightedNote?: number | null
   chordTones?: string[]
+  playbackPosition?: QuizPosition | null
+  interactive?: boolean
   rootNote: string
   scaleType: ScaleType
   notationType: NotationType
@@ -64,6 +66,8 @@ export function Fretboard({
   highlightedNote = null,
   quiz,
   chordTones,
+  playbackPosition,
+  interactive = true,
 }: FretboardProps) {
   const { play } = useGuitarSampler(guitarTone)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -225,6 +229,9 @@ export function Fretboard({
                     highlightedNote
                   )
                   const isOpenString = fret === 0
+                  const playingHere =
+                    playbackPosition &&
+                    samePosition(playbackPosition, { stringIndex, fret })
                   const quizAnswer =
                     quiz?.revealed &&
                     quiz.answers.some(p =>
@@ -274,10 +281,11 @@ export function Fretboard({
                           animate={{ scale: 1 }}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.9 }}
+                          disabled={!interactive}
                           aria-label={
                             quiz
                               ? `${stringIndex + 1}번 줄 ${fret}프렛${hideName ? '' : ` ${displayNote}`}${quizAnswer ? ', 정답 위치' : ''}${quizGuess ? ', 선택한 위치' : ''}${quizMarker ? ', 문제 위치' : ''}${quizReference ? ', 기준점 R' : ''}`
-                              : `${stringIndex + 1}번 줄 ${fret}프렛 ${note}${chordNote ? ', 재생 중 코드톤' : ''}${!active && inScale ? ', 다른 포지션' : ''}${highlighted ? ', 찾는 음' : ''}`
+                              : `${stringIndex + 1}번 줄 ${fret}프렛 ${note}${playingHere ? ', 현재 릭 위치' : ''}${chordNote ? ', 재생 중 코드톤' : ''}${!active && inScale ? ', 다른 포지션' : ''}${highlighted ? ', 찾는 음' : ''}`
                           }
                           onClick={e => {
                             if (e.detail === 0 || !dragged.current) {
@@ -309,7 +317,7 @@ export function Fretboard({
                               'opacity-40',
                             (quiz
                               ? quizGuess || quizAnswer || quizMarker
-                              : highlighted) &&
+                              : highlighted || playingHere) &&
                               'ring-2 ring-foreground ring-offset-2 ring-offset-card'
                           )}
                         >
