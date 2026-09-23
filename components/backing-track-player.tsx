@@ -19,6 +19,7 @@ import {
 interface BackingTrackPlayerProps {
   rootNote: string
   scaleType: ScaleType
+  onChordChange?: (chord: Chord | null) => void
 }
 
 type DrumStep = { kick: boolean; snare: boolean; hihat: boolean }
@@ -159,6 +160,7 @@ type PlayerMode = 'backing' | 'metronome'
 export function BackingTrackPlayer({
   rootNote,
   scaleType,
+  onChordChange,
 }: BackingTrackPlayerProps) {
   const [mode, setMode] = useState<PlayerMode>('backing')
   const [expanded, setExpanded] = useState(true)
@@ -170,7 +172,12 @@ export function BackingTrackPlayer({
     handleBpmInputChange,
     handleBpmBlur,
     handleTapTempo,
-  } = useBpmControl({ initialBpm: 90, min: 60, max: 200, storageKey: 'guitarkit:backing-bpm' })
+  } = useBpmControl({
+    initialBpm: 90,
+    min: 60,
+    max: 200,
+    storageKey: 'guitarkit:backing-bpm',
+  })
   const [style, setStyle] = useState<BackingStyle>('rock')
   const [progressionOverride, setProgressionOverride] = useState<
     number[] | null
@@ -195,6 +202,10 @@ export function BackingTrackPlayer({
   const chordSeqRef = useRef<Tone.Sequence<Chord> | null>(null)
   const drumSeqRef = useRef<Tone.Sequence<DrumStep> | null>(null)
   const drumStepRef = useRef(0)
+  const chordChangeRef = useRef(onChordChange)
+  useEffect(() => {
+    chordChangeRef.current = onChordChange
+  }, [onChordChange])
 
   // Initialize audio instruments once on mount
   useEffect(() => {
@@ -252,6 +263,7 @@ export function BackingTrackPlayer({
     // 메트로놈 모드일 때는 이 effect가 Transport를 건드리면 안 된다 — 임베드된
     // <Metronome bare>가 같은 전역 Transport를 쓰는데, isPlaying이 바뀔 때마다
     // 여기서 stop/cancel을 호출하면 메트로놈이 막 시작한 시퀀스를 바로 멈춰버린다.
+    chordChangeRef.current?.(null)
     if (mode !== 'backing') return
 
     setCurrentBeat(null)
@@ -283,6 +295,14 @@ export function BackingTrackPlayer({
     )
 
     let beatStep = 0
+    const timers = new Set<ReturnType<typeof setTimeout>>()
+    const scheduleVisual = (callback: () => void, delay: number) => {
+      const id = setTimeout(() => {
+        timers.delete(id)
+        callback()
+      }, delay)
+      timers.add(id)
+    }
 
     chordSeqRef.current = new Tone.Sequence<Chord>(
       (time, chord) => {
@@ -290,7 +310,10 @@ export function BackingTrackPlayer({
         beatStep++
 
         const delay = Math.max(0, (time - Tone.now()) * 1000 - 20)
-        setTimeout(() => setCurrentBeat(step), delay)
+        scheduleVisual(() => {
+          setCurrentBeat(step)
+          chordChangeRef.current?.(chord)
+        }, delay)
 
         if (samplerRef.current) {
           chord.midiNotes.forEach((midi, i) => {
@@ -318,7 +341,7 @@ export function BackingTrackPlayer({
 
         const qBeat = Math.floor(stepIdx / stepsPerQuarter)
         const delay = Math.max(0, (time - Tone.now()) * 1000 - 20)
-        setTimeout(() => setQuarterBeat(qBeat), delay)
+        scheduleVisual(() => setQuarterBeat(qBeat), delay)
 
         if (step.kick) kickRef.current?.triggerAttackRelease('C1', '8n', time)
         if (step.snare) snareRef.current?.triggerAttackRelease('8n', time)
@@ -332,6 +355,8 @@ export function BackingTrackPlayer({
     Tone.getTransport().start()
 
     return () => {
+      timers.forEach(clearTimeout)
+      chordChangeRef.current?.(null)
       chordSeqRef.current?.dispose()
       drumSeqRef.current?.dispose()
     }
@@ -460,228 +485,244 @@ export function BackingTrackPlayer({
             transition={{ duration: 0.25, ease: 'easeOut' }}
             className="overflow-hidden space-y-5"
           >
-      {mode === 'backing' && (
-        <>
-      {/* Style + BPM */}
-      <div className="flex flex-wrap items-center gap-6">
-        {/* Style selector */}
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Style</p>
-          <div className="relative inline-flex p-1 bg-muted rounded-lg">
-            {(Object.keys(STYLE_LABELS) as BackingStyle[]).map(s => (
-              <button
-                key={s}
-                onClick={() => handleSetStyle(s)}
-                className={cn(
-                  'relative px-4 py-2 text-sm font-medium rounded-md transition-colors z-10',
-                  style === s
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {style === s && (
-                  <motion.div
-                    layoutId="backing-style"
-                    className="absolute inset-0 bg-background rounded-md shadow-sm z-[-1]"
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  />
-                )}
-                {STYLE_LABELS[s]}
-              </button>
-            ))}
-          </div>
-        </div>
+            {mode === 'backing' && (
+              <>
+                {/* Style + BPM */}
+                <div className="flex flex-wrap items-center gap-6">
+                  {/* Style selector */}
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Style</p>
+                    <div className="relative inline-flex p-1 bg-muted rounded-lg">
+                      {(Object.keys(STYLE_LABELS) as BackingStyle[]).map(s => (
+                        <button
+                          key={s}
+                          onClick={() => handleSetStyle(s)}
+                          className={cn(
+                            'relative px-4 py-2 text-sm font-medium rounded-md transition-colors z-10',
+                            style === s
+                              ? 'text-foreground'
+                              : 'text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          {style === s && (
+                            <motion.div
+                              layoutId="backing-style"
+                              className="absolute inset-0 bg-background rounded-md shadow-sm z-[-1]"
+                              transition={{
+                                type: 'spring',
+                                stiffness: 300,
+                                damping: 30,
+                              }}
+                            />
+                          )}
+                          {STYLE_LABELS[s]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-        {/* Subdivision selector */}
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">비트</p>
-          <div className="relative inline-flex p-1 bg-muted rounded-lg">
-            {(Object.keys(SUBDIVISION_LABELS) as Subdivision[]).map(s => (
-              <button
-                key={s}
-                onClick={() => setSubdivision(s)}
-                className={cn(
-                  'relative px-4 py-2 text-sm font-medium rounded-md transition-colors z-10',
-                  subdivision === s
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {subdivision === s && (
-                  <motion.div
-                    layoutId="backing-subdivision"
-                    className="absolute inset-0 bg-background rounded-md shadow-sm z-[-1]"
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  />
-                )}
-                {SUBDIVISION_LABELS[s]}
-              </button>
-            ))}
-          </div>
-        </div>
+                  {/* Subdivision selector */}
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">비트</p>
+                    <div className="relative inline-flex p-1 bg-muted rounded-lg">
+                      {(Object.keys(SUBDIVISION_LABELS) as Subdivision[]).map(
+                        s => (
+                          <button
+                            key={s}
+                            onClick={() => setSubdivision(s)}
+                            className={cn(
+                              'relative px-4 py-2 text-sm font-medium rounded-md transition-colors z-10',
+                              subdivision === s
+                                ? 'text-foreground'
+                                : 'text-muted-foreground hover:text-foreground'
+                            )}
+                          >
+                            {subdivision === s && (
+                              <motion.div
+                                layoutId="backing-subdivision"
+                                className="absolute inset-0 bg-background rounded-md shadow-sm z-[-1]"
+                                transition={{
+                                  type: 'spring',
+                                  stiffness: 300,
+                                  damping: 30,
+                                }}
+                              />
+                            )}
+                            {SUBDIVISION_LABELS[s]}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
 
-        {/* BPM control */}
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">BPM</p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleBpmChange(-5)}
-              className="w-8 h-8 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground font-bold transition-colors"
-            >
-              −
-            </button>
-            <input
-              type="number"
-              min={60}
-              max={200}
-              value={bpmInput}
-              onChange={handleBpmInputChange}
-              onFocus={e => e.target.select()}
-              onBlur={handleBpmBlur}
-              className="w-14 text-center text-sm font-mono font-semibold tabular-nums bg-muted rounded-md px-1 py-1 border-0 outline-none focus:ring-1 focus:ring-accent-teal [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-            <button
-              onClick={() => handleBpmChange(5)}
-              className="w-8 h-8 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground font-bold transition-colors"
-            >
-              +
-            </button>
-            <button
-              onClick={handleTapTempo}
-              className="ml-1 px-3 h-8 rounded-md border border-border bg-card hover:border-accent-teal hover:text-accent-teal text-xs font-medium text-muted-foreground transition-colors"
-            >
-              TAP
-            </button>
-          </div>
-        </div>
+                  {/* BPM control */}
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">BPM</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleBpmChange(-5)}
+                        className="w-8 h-8 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground font-bold transition-colors"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min={60}
+                        max={200}
+                        value={bpmInput}
+                        onChange={handleBpmInputChange}
+                        onFocus={e => e.target.select()}
+                        onBlur={handleBpmBlur}
+                        className="w-14 text-center text-sm font-mono font-semibold tabular-nums bg-muted rounded-md px-1 py-1 border-0 outline-none focus:ring-1 focus:ring-accent-teal [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <button
+                        onClick={() => handleBpmChange(5)}
+                        className="w-8 h-8 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground font-bold transition-colors"
+                      >
+                        +
+                      </button>
+                      <button
+                        onClick={handleTapTempo}
+                        className="ml-1 px-3 h-8 rounded-md border border-border bg-card hover:border-accent-teal hover:text-accent-teal text-xs font-medium text-muted-foreground transition-colors"
+                      >
+                        TAP
+                      </button>
+                    </div>
+                  </div>
 
-        {/* Volume controls */}
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">Volume</p>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-11">
-                Piano
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={chordVolume}
-                onChange={e => setChordVolume(Number(e.target.value))}
-                className="w-24 accent-accent-teal"
-              />
-              <span className="text-xs text-muted-foreground w-7 tabular-nums">
-                {chordVolume}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-11">
-                Drums
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={drumVolume}
-                onChange={e => setDrumVolume(Number(e.target.value))}
-                className="w-24 accent-accent-teal"
-              />
-              <span className="text-xs text-muted-foreground w-7 tabular-nums">
-                {drumVolume}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Beat Indicator */}
-      <div className="flex justify-center items-center gap-4 py-1">
-        {[0, 1, 2, 3].map(i => {
-          const isActive = isPlaying && quarterBeat === i
-          const isDownbeat = i === 0
-          return (
-            <motion.div
-              key={i}
-              animate={
-                isActive
-                  ? { scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }
-                  : { scale: 1, opacity: 0.2 }
-              }
-              transition={{ duration: (60 / bpm) * 0.7, ease: 'easeOut' }}
-              className={cn(
-                'rounded-full',
-                isActive
-                  ? isDownbeat
-                    ? 'w-5 h-5 bg-accent-orange shadow-lg shadow-accent-orange/50'
-                    : 'w-5 h-5 bg-accent-teal shadow-lg shadow-accent-teal/50'
-                  : 'w-4 h-4 bg-muted-foreground/30'
-              )}
-            />
-          )
-        })}
-      </div>
-
-          {/* Loop progression */}
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Loop (4 bars)</p>
-            <div className="flex flex-wrap gap-3">
-              {progressionIndices.map((chordIdx, slotIndex) => {
-                const chord = chords[Math.min(chordIdx, chords.length - 1)]
-                const isActive = isPlaying && currentBeat === slotIndex
-                return (
-                  <div
-                    key={slotIndex}
-                    className={cn(
-                      'flex items-center gap-1 px-3 py-2 rounded-lg border transition-all',
-                      isActive
-                        ? 'bg-accent-orange/20 border-accent-orange text-accent-orange'
-                        : 'bg-muted/30 border-border text-foreground'
-                    )}
-                  >
-                    <button
-                      onClick={() => cycleSlotChord(slotIndex, -1)}
-                      className="text-muted-foreground hover:text-foreground transition-colors text-xs px-1"
-                    >
-                      ‹
-                    </button>
-                    <div className="text-center min-w-[48px]">
-                      <div className="text-sm font-bold">
-                        {getChordLabel(chord)}
+                  {/* Volume controls */}
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Volume</p>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-11">
+                          Piano
+                        </span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={chordVolume}
+                          onChange={e => setChordVolume(Number(e.target.value))}
+                          className="w-24 accent-accent-teal"
+                        />
+                        <span className="text-xs text-muted-foreground w-7 tabular-nums">
+                          {chordVolume}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-11">
+                          Drums
+                        </span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={drumVolume}
+                          onChange={e => setDrumVolume(Number(e.target.value))}
+                          className="w-24 accent-accent-teal"
+                        />
+                        <span className="text-xs text-muted-foreground w-7 tabular-nums">
+                          {drumVolume}
+                        </span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => cycleSlotChord(slotIndex, 1)}
-                      className="text-muted-foreground hover:text-foreground transition-colors text-xs px-1"
-                    >
-                      ›
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Diatonic chords reference */}
-          <div className="space-y-2 border-t border-border pt-4">
-            <p className="text-xs text-muted-foreground">Diatonic Chords</p>
-            <div className="flex flex-wrap gap-2">
-              {chords.map((chord, i) => (
-                <div
-                  key={i}
-                  className="px-3 py-1.5 rounded-md bg-muted/50 text-center"
-                >
-                  <div className="text-xs font-semibold text-foreground">
-                    {getChordLabel(chord)}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
 
-      {mode === 'metronome' && <Metronome bare isPlaying={isPlaying} />}
+                {/* Beat Indicator */}
+                <div className="flex justify-center items-center gap-4 py-1">
+                  {[0, 1, 2, 3].map(i => {
+                    const isActive = isPlaying && quarterBeat === i
+                    const isDownbeat = i === 0
+                    return (
+                      <motion.div
+                        key={i}
+                        animate={
+                          isActive
+                            ? { scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }
+                            : { scale: 1, opacity: 0.2 }
+                        }
+                        transition={{
+                          duration: (60 / bpm) * 0.7,
+                          ease: 'easeOut',
+                        }}
+                        className={cn(
+                          'rounded-full',
+                          isActive
+                            ? isDownbeat
+                              ? 'w-5 h-5 bg-accent-orange shadow-lg shadow-accent-orange/50'
+                              : 'w-5 h-5 bg-accent-teal shadow-lg shadow-accent-teal/50'
+                            : 'w-4 h-4 bg-muted-foreground/30'
+                        )}
+                      />
+                    )
+                  })}
+                </div>
+
+                {/* Loop progression */}
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Loop (4 bars)</p>
+                  <div className="flex flex-wrap gap-3">
+                    {progressionIndices.map((chordIdx, slotIndex) => {
+                      const chord =
+                        chords[Math.min(chordIdx, chords.length - 1)]
+                      const isActive = isPlaying && currentBeat === slotIndex
+                      return (
+                        <div
+                          key={slotIndex}
+                          className={cn(
+                            'flex items-center gap-1 px-3 py-2 rounded-lg border transition-all',
+                            isActive
+                              ? 'bg-accent-orange/20 border-accent-orange text-accent-orange'
+                              : 'bg-muted/30 border-border text-foreground'
+                          )}
+                        >
+                          <button
+                            onClick={() => cycleSlotChord(slotIndex, -1)}
+                            className="text-muted-foreground hover:text-foreground transition-colors text-xs px-1"
+                          >
+                            ‹
+                          </button>
+                          <div className="text-center min-w-[48px]">
+                            <div className="text-sm font-bold">
+                              {getChordLabel(chord)}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => cycleSlotChord(slotIndex, 1)}
+                            className="text-muted-foreground hover:text-foreground transition-colors text-xs px-1"
+                          >
+                            ›
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Diatonic chords reference */}
+                <div className="space-y-2 border-t border-border pt-4">
+                  <p className="text-xs text-muted-foreground">
+                    Diatonic Chords
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {chords.map((chord, i) => (
+                      <div
+                        key={i}
+                        className="px-3 py-1.5 rounded-md bg-muted/50 text-center"
+                      >
+                        <div className="text-xs font-semibold text-foreground">
+                          {getChordLabel(chord)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {mode === 'metronome' && <Metronome bare isPlaying={isPlaying} />}
           </motion.div>
         )}
       </AnimatePresence>

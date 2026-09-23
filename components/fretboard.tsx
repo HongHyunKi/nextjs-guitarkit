@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { DisplayMode, noteVisibility } from '@/lib/practice-settings'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
@@ -22,12 +22,23 @@ import {
   supportsCAGED,
 } from '@/lib/caged-utils'
 import { GuitarTone, useGuitarSampler } from '@/lib/guitar-sampler'
+import { samePosition, type QuizPosition } from '@/lib/note-quiz'
 
 export type { GuitarTone }
 
 interface FretboardProps {
+  quiz?: {
+    answers: QuizPosition[]
+    answerNote?: string
+    marker?: QuizPosition
+    reference?: QuizPosition
+    guess: QuizPosition | null
+    revealed: boolean
+    onGuess: (position: QuizPosition) => void
+  }
   displayMode?: DisplayMode
   highlightedNote?: number | null
+  chordTones?: string[]
   rootNote: string
   scaleType: ScaleType
   notationType: NotationType
@@ -51,40 +62,18 @@ export function Fretboard({
   guitarTone = 'electric',
   displayMode = 'scale',
   highlightedNote = null,
+  quiz,
+  chordTones,
 }: FretboardProps) {
   const { play } = useGuitarSampler(guitarTone)
   const scrollRef = useRef<HTMLDivElement>(null)
   const pointerStart = useRef<{ x: number; y: number } | null>(null)
   const dragged = useRef(false)
-  const [edges, setEdges] = useState({ start: true, end: true })
-  const updateEdges = () => {
-    const el = scrollRef.current
-    if (el)
-      setEdges({
-        start: el.scrollLeft <= 1,
-        end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1,
-      })
-  }
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
     el.scrollLeft = 0
-    const observer = new ResizeObserver(updateEdges)
-    observer.observe(el)
-    updateEdges()
-    return () => observer.disconnect()
   }, [startFret, frets])
-  const move = (direction: number) => {
-    const el = scrollRef.current
-    if (!el) return
-    const width = el.querySelector<HTMLElement>('.fret-col')?.offsetWidth ?? 52
-    el.scrollBy({
-      left: direction * Math.max(width, el.clientWidth - 64 - width),
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        ? 'auto'
-        : 'smooth',
-    })
-  }
 
   const scaleNotes = useMemo(
     () => getScaleNotes(rootNote, scaleType),
@@ -110,7 +99,7 @@ export function Fretboard({
     if (notationType === 'syllabic') {
       return noteToFixedSolfege(note)
     } else if (notationType === 'intervals') {
-      return noteToInterval(note, rootNote)
+      return noteToInterval(note, chordTones?.[0] ?? rootNote)
     }
     return note
   }
@@ -163,28 +152,11 @@ export function Fretboard({
 
   return (
     <div className="min-w-0">
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <button
-          className="min-h-11 px-3 rounded-lg border border-border text-sm disabled:opacity-40"
-          disabled={edges.start}
-          onClick={() => move(-1)}
-        >
-          ← 이전 구간
-        </button>
-        <span className="text-xs text-muted-foreground">
-          {startFret}–{frets}프렛
-        </span>
-        <button
-          className="min-h-11 px-3 rounded-lg border border-border text-sm disabled:opacity-40"
-          disabled={edges.end}
-          onClick={() => move(1)}
-        >
-          다음 구간 →
-        </button>
-      </div>
+      <p className="text-sm text-muted-foreground mb-3">
+        표시 범위 {startFret}–{frets}프렛 · 지판이 잘리면 좌우로 스크롤하세요.
+      </p>
       <div
         ref={scrollRef}
-        onScroll={updateEdges}
         tabIndex={0}
         role="region"
         aria-label="기타 지판, 좌우로 스크롤"
@@ -239,7 +211,10 @@ export function Fretboard({
                   const scaleNote = scaleNotes.find(
                     n => getNoteIndex(n) === getNoteIndex(chromaticNote)
                   )
-                  const note = scaleNote ?? chromaticNote
+                  const chordNote = chordTones?.find(
+                    n => getNoteIndex(n) === getNoteIndex(chromaticNote)
+                  )
+                  const note = chordNote ?? scaleNote ?? chromaticNote
                   const inScale = scaleNote !== undefined
                   const isRoot = getNoteIndex(note) === getNoteIndex(rootNote)
                   const active = isActiveNote(stringIndex, fret)
@@ -250,6 +225,24 @@ export function Fretboard({
                     highlightedNote
                   )
                   const isOpenString = fret === 0
+                  const quizAnswer =
+                    quiz?.revealed &&
+                    quiz.answers.some(p =>
+                      samePosition(p, { stringIndex, fret })
+                    )
+                  const quizMarker =
+                    quiz?.marker &&
+                    samePosition(quiz.marker, { stringIndex, fret })
+                  const quizReference =
+                    quiz?.reference &&
+                    samePosition(quiz.reference, { stringIndex, fret })
+                  const quizGuess =
+                    quiz?.guess?.stringIndex === stringIndex &&
+                    quiz.guess.fret === fret
+                  const hideName = quiz && !quiz.revealed
+                  const displayNote = quizAnswer
+                    ? (quiz?.answerNote ?? note)
+                    : note
 
                   return (
                     <div
@@ -275,29 +268,59 @@ export function Fretboard({
                       )}
 
                       {/* 활성 노트 (0프렛 포함, 동일 UI) */}
-                      {visible && (
+                      {(quiz || chordNote || visible) && (
                         <motion.button
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.9 }}
-                          aria-label={`${stringIndex + 1}번 줄 ${fret}프렛 ${note}${!active && inScale ? ', 다른 포지션' : ''}${highlighted ? ', 찾는 음' : ''}`}
+                          aria-label={
+                            quiz
+                              ? `${stringIndex + 1}번 줄 ${fret}프렛${hideName ? '' : ` ${displayNote}`}${quizAnswer ? ', 정답 위치' : ''}${quizGuess ? ', 선택한 위치' : ''}${quizMarker ? ', 문제 위치' : ''}${quizReference ? ', 기준점 R' : ''}`
+                              : `${stringIndex + 1}번 줄 ${fret}프렛 ${note}${chordNote ? ', 재생 중 코드톤' : ''}${!active && inScale ? ', 다른 포지션' : ''}${highlighted ? ', 찾는 음' : ''}`
+                          }
                           onClick={e => {
-                            if (e.detail === 0 || !dragged.current)
+                            if (e.detail === 0 || !dragged.current) {
+                              quiz?.onGuess({ stringIndex, fret })
                               playNote(stringIndex, fret)
+                            }
                           }}
                           className={cn(
                             'relative z-10 w-11 h-11 rounded-full flex items-center justify-center text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                            displayMode !== 'all' && inScale
-                              ? getNoteColorClass(isRoot)
-                              : 'bg-muted text-foreground border border-border',
-                            !active && inScale && !highlighted && 'opacity-40',
-                            highlighted &&
+                            quizReference
+                              ? 'bg-accent-orange text-background'
+                              : quizAnswer
+                                ? 'bg-accent-teal text-background'
+                                : chordNote
+                                  ? getNoteColorClass(
+                                      getNoteIndex(chordNote) ===
+                                        getNoteIndex(chordTones![0])
+                                    )
+                                  : chordTones
+                                    ? 'bg-muted text-foreground border border-border'
+                                    : !quiz && displayMode !== 'all' && inScale
+                                      ? getNoteColorClass(isRoot)
+                                      : 'bg-muted text-foreground border border-border',
+                            !quiz &&
+                              !chordNote &&
+                              !active &&
+                              inScale &&
+                              !highlighted &&
+                              'opacity-40',
+                            (quiz
+                              ? quizGuess || quizAnswer || quizMarker
+                              : highlighted) &&
                               'ring-2 ring-foreground ring-offset-2 ring-offset-card'
                           )}
                         >
                           <span className="drop-shadow-sm">
-                            {getDisplayNote(note)}
+                            {hideName
+                              ? quizReference
+                                ? 'R'
+                                : quizMarker
+                                  ? '●'
+                                  : '?'
+                              : getDisplayNote(displayNote)}
                           </span>
                         </motion.button>
                       )}

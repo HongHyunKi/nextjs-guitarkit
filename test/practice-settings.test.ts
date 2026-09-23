@@ -43,6 +43,29 @@ test('all and overlay expose non-scale notes; finding an enharmonic note overrid
   expect(noteVisibility('all', true, 'C', 1).highlighted).toBe(false)
 })
 
+test('fret range retains both ends, including 24, without changing other settings', () => {
+  for (const [startFret, frets] of [
+    [0, 3],
+    [0, 24],
+    [15, 24],
+    [21, 24],
+  ]) {
+    const saved = { ...DEFAULT_SETTINGS, startFret, frets, rootNote: 'D' }
+    expect(parsePracticeSettings(JSON.stringify(saved))).toEqual(saved)
+  }
+  for (const [startFret, frets] of [
+    [22, 24],
+    [15, 14],
+    [0, 25],
+  ]) {
+    expect(
+      parsePracticeSettings(
+        JSON.stringify({ ...DEFAULT_SETTINGS, startFret, frets })
+      )
+    ).toEqual(DEFAULT_SETTINGS)
+  }
+})
+
 test('BPM restore accepts only valid integers in the player range', () => {
   expect(parseSavedBpm('120', 90, 60, 200)).toBe(120)
   for (const value of [null, '', 'NaN', 'Infinity', '20', '201', '90.5'])

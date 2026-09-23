@@ -1,10 +1,8 @@
 import {
   getScaleNotes,
   getNoteIndex,
-  isScaleFlat,
   ScaleType,
   SCALE_CHARACTER,
-  CHROMATIC_NOTES,
 } from '@/lib/music-utils'
 
 export type ChordQuality =
@@ -27,14 +25,6 @@ export interface DiatonicChords {
   chords: Chord[]
   scaleType: ScaleType
   rootNote: string
-}
-
-const CHORD_INTERVALS: Record<ChordQuality, number[]> = {
-  major: [0, 4, 7],
-  minor: [0, 3, 7],
-  diminished: [0, 3, 6],
-  augmented: [0, 4, 8],
-  dominant7: [0, 4, 7, 10],
 }
 
 // Pentatonic scales skip degrees, so triads can't be derived by stacking
@@ -75,7 +65,10 @@ const QUALITY_SUFFIX: Record<ChordQuality, string> = {
   dominant7: '7',
 }
 
-function tripleQuality(thirdInterval: number, fifthInterval: number): ChordQuality {
+function tripleQuality(
+  thirdInterval: number,
+  fifthInterval: number
+): ChordQuality {
   if (thirdInterval === 4 && fifthInterval === 7) return 'major'
   if (thirdInterval === 3 && fifthInterval === 7) return 'minor'
   if (thirdInterval === 3 && fifthInterval === 6) return 'diminished'
@@ -109,35 +102,8 @@ function buildDiatonicTriads(
   })
 }
 
-const NOTES_FLAT = [
-  'C',
-  'Db',
-  'D',
-  'Eb',
-  'E',
-  'F',
-  'Gb',
-  'G',
-  'Ab',
-  'A',
-  'Bb',
-  'B',
-]
-
 export function noteToMidi(note: string, octave: number): number {
   return (octave + 1) * 12 + getNoteIndex(note)
-}
-
-function buildChordNotes(
-  root: string,
-  quality: ChordQuality,
-  useFlat: boolean
-): string[] {
-  const rootIdx = getNoteIndex(root)
-  const ref = useFlat ? NOTES_FLAT : CHROMATIC_NOTES
-  return CHORD_INTERVALS[quality].map(
-    interval => ref[(rootIdx + interval) % 12]
-  )
 }
 
 function buildMidiNotes(notes: string[]): number[] {
@@ -157,7 +123,6 @@ export function getDiatonicChords(
   scaleType: ScaleType
 ): DiatonicChords {
   const scaleNotes = getScaleNotes(rootNote, scaleType)
-  const useFlat = isScaleFlat(rootNote, scaleType)
 
   let diatonics: { quality: ChordQuality; numeral: string }[]
   if (scaleType === 'major-pentatonic') {
@@ -176,7 +141,15 @@ export function getDiatonicChords(
 
   const chords: Chord[] = scaleNotes.map((note, i) => {
     const { quality, numeral } = diatonics[i]
-    const notes = buildChordNotes(note, quality, useFlat)
+    const notes =
+      scaleNotes.length === 7
+        ? [note, scaleNotes[(i + 2) % 7], scaleNotes[(i + 4) % 7]]
+        : [0, 2, 4].map(
+            degree =>
+              getScaleNotes(note, quality === 'minor' ? 'minor' : 'major')[
+                degree
+              ]
+          )
     return {
       root: note,
       quality,

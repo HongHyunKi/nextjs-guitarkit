@@ -5,25 +5,16 @@ import { Settings2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { GuitarToneToggle } from '@/components/guitar-tone-toggle'
-import { FretControl } from '@/components/fret-control'
 import { GuitarTone } from '@/components/fretboard'
 
 interface ViewSettingsPopoverProps {
   guitarTone: GuitarTone
   onGuitarToneChange: (tone: GuitarTone) => void
-  startFret: number
-  frets: number
-  onStartFretChange: (value: number) => void
-  onFretsChange: (value: number) => void
 }
 
 export function ViewSettingsPopover({
   guitarTone,
   onGuitarToneChange,
-  startFret,
-  frets,
-  onStartFretChange,
-  onFretsChange,
 }: ViewSettingsPopoverProps) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -86,30 +77,6 @@ export function ViewSettingsPopover({
             <GuitarToneToggle
               tone={guitarTone}
               onToneChange={onGuitarToneChange}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-muted-foreground mb-2 block">
-              Start Fret
-            </label>
-            <FretControl
-              value={startFret}
-              onChange={onStartFretChange}
-              min={0}
-              max={frets - 3}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-muted-foreground mb-2 block">
-              End Fret
-            </label>
-            <FretControl
-              value={frets}
-              onChange={onFretsChange}
-              min={startFret + 3}
-              max={24}
             />
           </div>
         </div>

@@ -6,6 +6,45 @@ import {
   type ChordType,
 } from '@/lib/music-utils'
 import { getChordVoicings } from '@/lib/chord-voicings'
+import { getDiatonicChords } from '@/lib/chord-utils'
+import { SCALE_LABELS, type ScaleType } from '@/lib/music-utils'
+
+test('backing chord spellings and sounding pitches agree across all roots and scales', () => {
+  for (const root of ALL_ROOTS)
+    for (const scale of Object.keys(SCALE_LABELS) as ScaleType[]) {
+      for (const chord of getDiatonicChords(root, scale).chords) {
+        expect(chord.notes[0]).toBe(chord.root)
+        const formula = {
+          major: [0, 4, 7],
+          minor: [0, 3, 7],
+          diminished: [0, 3, 6],
+          augmented: [0, 4, 8],
+          dominant7: [0, 4, 7, 10],
+        }[chord.quality]
+        expect(
+          chord.notes.map(
+            n => (getNoteIndex(n) - getNoteIndex(chord.root) + 12) % 12
+          )
+        ).toEqual(formula)
+        expect(chord.midiNotes.map(n => n % 12)).toEqual(
+          chord.notes.map(getNoteIndex)
+        )
+        expect(chord.midiNotes.map(n => n - chord.midiNotes[0])).toEqual(
+          formula
+        )
+      }
+    }
+  expect(getDiatonicChords('C#', 'major').chords[0].notes).toEqual([
+    'C#',
+    'E#',
+    'G#',
+  ])
+  expect(getDiatonicChords('D', 'harmonic-minor').chords[4].notes).toEqual([
+    'A',
+    'C#',
+    'E',
+  ])
+})
 
 const ALL_ROOTS = [
   'C',
@@ -115,8 +154,7 @@ describe('getChordNotes', () => {
 
 // ─── getChordVoicings ────────────────────────────────────────────────────────
 
-const pitchClass = (pitch: string) =>
-  getNoteIndex(pitch.replace(/-?\d+$/, ''))
+const pitchClass = (pitch: string) => getNoteIndex(pitch.replace(/-?\d+$/, ''))
 
 describe('getChordVoicings', () => {
   it('every voicing sounds exactly the chord tones (all roots × all types)', () => {
