@@ -166,6 +166,7 @@
      xl 이상(데스크톱)은 기존처럼 컨테이너 폭에 비율대로 꽉 채움 */
   .fret-col {
     flex: 0 0 var(--fret-w);
+    min-width: 52px;
   }
 
   @media (min-width: 80rem) {

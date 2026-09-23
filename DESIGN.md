@@ -79,6 +79,10 @@
 
 ## 8. 컴포넌트 레시피
 
+- **셀렉트**: shadcn/Radix `Select`를 사용한다. 트리거·항목 최소 높이 44px, `bg-card border-border rounded-lg`, 선택/포커스는 teal. 메뉴는 Portal로 표시하고 화면 높이 안에서 스크롤한다.
+
+- 지판: 음 버튼 터치 영역은 최소 44×44px, 프렛 열은 최소 52px. 전체 음은 중립색, 스케일은 teal, 루트는 orange, 찾는 음은 foreground 링으로 구분한다. 줄 라벨은 가로 스크롤 안에서 왼쪽에 고정하고 번호·마커도 동일한 열 너비를 사용한다.
+
 - **선택 pill**: shadcn `Button`, 선택 시 `bg-accent-orange`(루트) 또는 `bg-accent-teal`(스케일/CAGED) + `text-background` — 2절의 의미 표를 따른다.
 - **노트 칩**: `px-2 py-1 text-sm font-medium rounded border` + 틴트 레시피 (루트=orange, 나머지=teal).
 - **상태 배지**: `text-xs rounded-full px-2.5 py-0.5` — 활성은 teal 틴트, 준비중은 `bg-muted text-muted-foreground`.

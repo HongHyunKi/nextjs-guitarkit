@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { DisplayMode, noteVisibility } from '@/lib/practice-settings'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import {
@@ -17,13 +18,16 @@ import {
 import {
   CAGEDShape,
   CAGEDSelection,
-  isInCAGEDShapeRange,
+  isInCAGEDShape,
+  supportsCAGED,
 } from '@/lib/caged-utils'
 import { GuitarTone, useGuitarSampler } from '@/lib/guitar-sampler'
 
 export type { GuitarTone }
 
 interface FretboardProps {
+  displayMode?: DisplayMode
+  highlightedNote?: number | null
   rootNote: string
   scaleType: ScaleType
   notationType: NotationType
@@ -45,8 +49,42 @@ export function Fretboard({
   cagedEnabled = false,
   selectedCAGEDShape = 'all',
   guitarTone = 'electric',
+  displayMode = 'scale',
+  highlightedNote = null,
 }: FretboardProps) {
   const { play } = useGuitarSampler(guitarTone)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const pointerStart = useRef<{ x: number; y: number } | null>(null)
+  const dragged = useRef(false)
+  const [edges, setEdges] = useState({ start: true, end: true })
+  const updateEdges = () => {
+    const el = scrollRef.current
+    if (el)
+      setEdges({
+        start: el.scrollLeft <= 1,
+        end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1,
+      })
+  }
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollLeft = 0
+    const observer = new ResizeObserver(updateEdges)
+    observer.observe(el)
+    updateEdges()
+    return () => observer.disconnect()
+  }, [startFret, frets])
+  const move = (direction: number) => {
+    const el = scrollRef.current
+    if (!el) return
+    const width = el.querySelector<HTMLElement>('.fret-col')?.offsetWidth ?? 52
+    el.scrollBy({
+      left: direction * Math.max(width, el.clientWidth - 64 - width),
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth',
+    })
+  }
 
   const scaleNotes = useMemo(
     () => getScaleNotes(rootNote, scaleType),
@@ -78,9 +116,21 @@ export function Fretboard({
   }
 
   // 해당 프렛이 선택된 shape의 활성 범위에 속하는지
-  const isActiveNote = (fret: number): boolean => {
-    if (!cagedEnabled || selectedCAGEDShape === 'all') return true
-    return isInCAGEDShapeRange(fret, rootNote, selectedCAGEDShape as CAGEDShape)
+  const isActiveNote = (stringIndex: number, fret: number): boolean => {
+    if (
+      displayMode === 'all' ||
+      !cagedEnabled ||
+      !supportsCAGED(scaleType) ||
+      selectedCAGEDShape === 'all'
+    )
+      return true
+    return isInCAGEDShape(
+      stringIndex,
+      fret,
+      rootNote,
+      scaleType,
+      selectedCAGEDShape as CAGEDShape
+    )
   }
 
   // 활성 노트의 색상
@@ -97,10 +147,10 @@ export function Fretboard({
     return 'border-r-2 border-border'
   }
 
-  // 프렛별 너비 (기타 물리 법칙: 12프렛 = 1프렛의 절반)
+  // 프렛이 높아질수록 좁아지되 터치 영역과 강조 테두리를 확보한다.
   const getFretWidth = (fret: number): number => {
     if (fret === 0) return 52
-    return Math.max(36, Math.round(72 * Math.pow(0.965, fret - 1)))
+    return Math.max(52, Math.round(72 * Math.pow(0.965, fret - 1)))
   }
 
   // 0프렛(너트)은 항상 고정폭. 나머지는 .fret-col(globals.css)이 브레이크포인트별로
@@ -112,140 +162,199 @@ export function Fretboard({
   }
 
   return (
-    <div className="w-full overflow-x-auto pb-6 custom-scrollbar">
-      <div className="w-full flex flex-col">
-        {/* 2. 지판 본체 */}
-        <div className="flex flex-col">
-          {STRINGS.map((openString, stringIndex) => (
-            <div
-              key={`string-${stringIndex}`}
-              className="flex items-stretch h-9"
-            >
-              {allFrets.map(fret => {
-                const useFlat = isScaleFlat(rootNote, scaleType)
-                const note = getNoteFromFret(openString, fret, useFlat)
-                const inScale = scaleNotes.some(
-                  n => getNoteIndex(n) === getNoteIndex(note)
-                )
-                const isRoot = getNoteIndex(note) === getNoteIndex(rootNote)
-                const active = isActiveNote(fret)
-                const isOpenString = fret === 0
+    <div className="min-w-0">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <button
+          className="min-h-11 px-3 rounded-lg border border-border text-sm disabled:opacity-40"
+          disabled={edges.start}
+          onClick={() => move(-1)}
+        >
+          ← 이전 구간
+        </button>
+        <span className="text-xs text-muted-foreground">
+          {startFret}–{frets}프렛
+        </span>
+        <button
+          className="min-h-11 px-3 rounded-lg border border-border text-sm disabled:opacity-40"
+          disabled={edges.end}
+          onClick={() => move(1)}
+        >
+          다음 구간 →
+        </button>
+      </div>
+      <div
+        ref={scrollRef}
+        onScroll={updateEdges}
+        tabIndex={0}
+        role="region"
+        aria-label="기타 지판, 좌우로 스크롤"
+        className="w-full overflow-x-auto pb-4 custom-scrollbar focus-visible:outline-2 focus-visible:outline-ring"
+        onPointerDown={e => {
+          pointerStart.current = { x: e.clientX, y: e.clientY }
+          dragged.current = false
+        }}
+        onPointerMove={e => {
+          if (
+            pointerStart.current &&
+            Math.hypot(
+              e.clientX - pointerStart.current.x,
+              e.clientY - pointerStart.current.y
+            ) > 8
+          )
+            dragged.current = true
+        }}
+        onPointerCancel={() => {
+          dragged.current = true
+          pointerStart.current = null
+        }}
+        onPointerUp={() => {
+          pointerStart.current = null
+        }}
+      >
+        <div
+          className="w-full flex flex-col"
+          style={{
+            minWidth:
+              64 + allFrets.reduce((sum, fret) => sum + getFretWidth(fret), 0),
+          }}
+        >
+          {/* 2. 지판 본체 */}
+          <div className="flex flex-col">
+            {STRINGS.map((openString, stringIndex) => (
+              <div
+                key={`string-${stringIndex}`}
+                className="flex items-stretch h-12"
+              >
+                <div className="sticky left-0 z-20 w-16 shrink-0 flex items-center justify-center gap-1 bg-card border-r border-border text-xs">
+                  <span>{stringIndex + 1}줄</span>
+                  <span className="font-mono font-semibold">{openString}</span>
+                </div>
+                {allFrets.map(fret => {
+                  const useFlat = isScaleFlat(rootNote, scaleType)
+                  const chromaticNote = getNoteFromFret(
+                    openString,
+                    fret,
+                    useFlat
+                  )
+                  const scaleNote = scaleNotes.find(
+                    n => getNoteIndex(n) === getNoteIndex(chromaticNote)
+                  )
+                  const note = scaleNote ?? chromaticNote
+                  const inScale = scaleNote !== undefined
+                  const isRoot = getNoteIndex(note) === getNoteIndex(rootNote)
+                  const active = isActiveNote(stringIndex, fret)
+                  const { visible, highlighted } = noteVisibility(
+                    displayMode,
+                    inScale,
+                    note,
+                    highlightedNote
+                  )
+                  const isOpenString = fret === 0
 
-                return (
-                  <div
-                    key={`fret-${stringIndex}-${fret}`}
-                    className={cn(
-                      'relative flex items-center justify-center',
-                      fret !== 0 && 'fret-col',
-                      getFretBorderClass(fret)
-                    )}
-                    style={getFretColumnStyle(fret)}
-                  >
-                    {/* 현(String) 가로선 (0프렛 왼쪽은 표시 안 함) */}
-                    {!isOpenString && (
-                      <div
-                        className="absolute top-1/2 left-0 right-0 bg-muted-foreground/50 pointer-events-none"
-                        style={{ height: `${1.5 + stringIndex * 0.3}px` }}
-                      />
-                    )}
+                  return (
+                    <div
+                      key={`fret-${stringIndex}-${fret}`}
+                      className={cn(
+                        'relative flex items-center justify-center',
+                        fret !== 0 && 'fret-col',
+                        getFretBorderClass(fret)
+                      )}
+                      style={getFretColumnStyle(fret)}
+                    >
+                      {/* 현(String) 가로선 (0프렛 왼쪽은 표시 안 함) */}
+                      {!isOpenString && (
+                        <div
+                          className="absolute top-1/2 left-0 right-0 bg-muted-foreground/50 pointer-events-none"
+                          style={{ height: `${1.5 + stringIndex * 0.3}px` }}
+                        />
+                      )}
 
-                    {/* 0프렛 너트 세로선 (오른쪽 끝 = 1프렛 경계) */}
-                    {isOpenString && (
-                      <div className="absolute inset-y-0 right-0 w-[6px] bg-foreground/90 pointer-events-none" />
-                    )}
+                      {/* 0프렛 너트 세로선 (오른쪽 끝 = 1프렛 경계) */}
+                      {isOpenString && (
+                        <div className="absolute inset-y-0 right-0 w-[6px] bg-foreground/90 pointer-events-none" />
+                      )}
 
-                    {/* 활성 노트 (0프렛 포함, 동일 UI) */}
-                    {inScale && active && (
-                      <motion.button
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        whileHover={{ scale: 1.15 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => playNote(stringIndex, fret)}
-                        className={cn(
-                          'relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold transition-all shadow-sm',
-                          getNoteColorClass(isRoot)
-                        )}
-                      >
-                        <span className="drop-shadow-sm">
-                          {getDisplayNote(note)}
-                        </span>
-                      </motion.button>
-                    )}
+                      {/* 활성 노트 (0프렛 포함, 동일 UI) */}
+                      {visible && (
+                        <motion.button
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.9 }}
+                          aria-label={`${stringIndex + 1}번 줄 ${fret}프렛 ${note}${!active && inScale ? ', 다른 포지션' : ''}${highlighted ? ', 찾는 음' : ''}`}
+                          onClick={e => {
+                            if (e.detail === 0 || !dragged.current)
+                              playNote(stringIndex, fret)
+                          }}
+                          className={cn(
+                            'relative z-10 w-11 h-11 rounded-full flex items-center justify-center text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                            displayMode !== 'all' && inScale
+                              ? getNoteColorClass(isRoot)
+                              : 'bg-muted text-foreground border border-border',
+                            !active && inScale && !highlighted && 'opacity-40',
+                            highlighted &&
+                              'ring-2 ring-foreground ring-offset-2 ring-offset-card'
+                          )}
+                        >
+                          <span className="drop-shadow-sm">
+                            {getDisplayNote(note)}
+                          </span>
+                        </motion.button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
 
-                    {/* 비활성 shape 노트: 흐리게 */}
-                    {inScale && !active && (
-                      <motion.button
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        onClick={() => playNote(stringIndex, fret)}
-                        className={cn(
-                          'relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold transition-all shadow-sm opacity-40',
-                          getNoteColorClass(isRoot)
-                        )}
-                      >
-                        <span className="drop-shadow-sm">
-                          {getDisplayNote(note)}
-                        </span>
-                      </motion.button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </div>
-
-        {/* 3. 하단 프렛 번호 */}
-        <div className="flex mt-3">
-          {startFret === 0 && <div className="w-8 min-w-4" />}
-          {allFrets.map(fret => (
-            <div
-              key={`num-${fret}`}
-              className={cn(
-                'flex items-center justify-center',
-                fret !== 0 && 'fret-col'
-              )}
-              style={getFretColumnStyle(fret)}
-            >
-              {fret > 0 && (
+          {/* 3. 하단 프렛 번호 */}
+          <div className="flex mt-3">
+            <div className="sticky left-0 z-20 w-16 shrink-0 bg-card" />
+            {allFrets.map(fret => (
+              <div
+                key={`num-${fret}`}
+                className={cn(
+                  'flex items-center justify-center',
+                  fret !== 0 && 'fret-col'
+                )}
+                style={getFretColumnStyle(fret)}
+              >
                 <span
                   className={cn(
                     'text-xs font-mono font-medium',
-                    fret === 12
-                      ? 'text-accent-orange'
-                      : 'text-muted-foreground'
+                    fret === 12 ? 'text-accent-orange' : 'text-muted-foreground'
                   )}
                 >
                   {fret}
                 </span>
-              )}
-            </div>
-          ))}
-        </div>
+              </div>
+            ))}
+          </div>
 
-        {/* 4. 하단 마커 영역 */}
-        <div className="flex mt-2">
-          {startFret === 0 && <div className="w-8 min-w-4" />}
-          {allFrets.map(fret => (
-            <div
-              key={`marker-${fret}`}
-              className={cn(
-                'flex items-center justify-center gap-1 h-5',
-                fret !== 0 && 'fret-col'
-              )}
-              style={getFretColumnStyle(fret)}
-            >
-              {[12, 24].includes(fret) ? (
-                <>
+          {/* 4. 하단 마커 영역 */}
+          <div className="flex mt-2">
+            <div className="sticky left-0 z-20 w-16 shrink-0 bg-card" />
+            {allFrets.map(fret => (
+              <div
+                key={`marker-${fret}`}
+                className={cn(
+                  'flex items-center justify-center gap-1 h-5',
+                  fret !== 0 && 'fret-col'
+                )}
+                style={getFretColumnStyle(fret)}
+              >
+                {[12, 24].includes(fret) ? (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+                    <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+                  </>
+                ) : [3, 5, 7, 9, 15, 17, 19, 21].includes(fret) ? (
                   <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
-                </>
-              ) : [3, 5, 7, 9, 15, 17, 19, 21].includes(fret) ? (
-                <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
-              ) : null}
-            </div>
-          ))}
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

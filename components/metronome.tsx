@@ -73,6 +73,7 @@ export function Metronome({
     handleBpmBlur,
     handleTapTempo,
   } = useBpmControl({
+    storageKey: 'guitarkit:metronome-bpm',
     initialBpm: 100,
     min: MIN_BPM,
     max: MAX_BPM,

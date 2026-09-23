@@ -20,21 +20,11 @@ const SOLFEGE_MAP: Record<number, string> = {
 // Fixed solfege mapping (absolute - C is always Do)
 const FIXED_SOLFEGE_MAP: Record<string, string> = {
   C: '도',
-  'C#': '도#',
-  Db: '레♭',
   D: '레',
-  'D#': '레#',
-  Eb: '미♭',
   E: '미',
   F: '파',
-  'F#': '파#',
-  Gb: '솔♭',
   G: '솔',
-  'G#': '솔#',
-  Ab: '라♭',
   A: '라',
-  'A#': '라#',
-  Bb: '시♭',
   B: '시',
 }
 
@@ -46,7 +36,7 @@ const INTERVAL_MAP: Record<number, string> = {
   3: '♭3',
   4: '3',
   5: '4',
-  6: '#4', // only reached by Lydian in this catalog — raised 4th, not a flat 5th
+  6: '#4', // Lydian scale degree; also the chromatic fallback for a tritone
   7: '5',
   8: '♭6',
   9: '6',
@@ -78,7 +68,7 @@ export const MAIN_SCALE_TYPES: ScaleType[] = [
 // Scale type labels
 export const SCALE_LABELS: Record<ScaleType, string> = {
   major: 'Major Scale',
-  minor: 'Minor Scale',
+  minor: 'Natural Minor',
   'major-pentatonic': 'Major Pentatonic',
   'minor-pentatonic': 'Minor Pentatonic',
   dorian: 'Dorian',
@@ -86,7 +76,22 @@ export const SCALE_LABELS: Record<ScaleType, string> = {
   lydian: 'Lydian',
   phrygian: 'Phrygian',
   'harmonic-minor': 'Harmonic Minor',
-  'melodic-minor': 'Melodic Minor',
+  'melodic-minor': 'Melodic Minor (상행)',
+}
+
+export const SCALE_DESCRIPTIONS: Record<ScaleType, string> = {
+  major: '메이저(장음계) · 1 2 3 4 5 6 7',
+  minor: '자연 마이너(자연단음계) · 1 2 ♭3 4 5 ♭6 ♭7',
+  'major-pentatonic': '메이저 펜타토닉 · 장음계에서 4도와 7도를 뺀 다섯 음',
+  'minor-pentatonic': '마이너 펜타토닉 · 1 ♭3 4 5 ♭7의 다섯 음',
+  dorian: '도리안 · 자연 마이너의 6도를 반음 올린 음계',
+  mixolydian: '믹솔리디안 · 메이저의 7도를 반음 내린 음계',
+  lydian: '리디안 · 메이저의 4도를 반음 올린 음계',
+  phrygian: '프리지안 · 자연 마이너의 2도를 반음 내린 음계',
+  'harmonic-minor':
+    '화성 마이너(화성단음계) · 자연 마이너의 7도를 반음 올린 음계',
+  'melodic-minor':
+    '가락 마이너(가락단음계) 상행형 · 자연 마이너의 6·7도를 반음 올립니다. 고전 이론의 하행형은 자연 마이너이며, 재즈에서는 이 상행형을 양방향으로 씁니다.',
 }
 
 // Major- vs minor-character scale, used to pick sharp/flat spelling (shouldUseFlat).
@@ -140,14 +145,8 @@ export const CHROMATIC_NOTES_WITH_ENHARMONICS = [
   'B',
 ]
 
-// Flat-to-sharp enharmonic mapping
-const FLAT_TO_SHARP: Record<string, string> = {
-  Db: 'C#',
-  Eb: 'D#',
-  Gb: 'F#',
-  Ab: 'G#',
-  Bb: 'A#',
-}
+const NOTE_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
+const NATURAL_PITCHES = [0, 2, 4, 5, 7, 9, 11]
 
 // All notes in chromatic order (sharp notation)
 const NOTES_SHARP = CHROMATIC_NOTES
@@ -199,8 +198,10 @@ const HARMONIC_MINOR_INTERVALS = [0, 2, 3, 5, 7, 8, 11]
 const MELODIC_MINOR_INTERVALS = [0, 2, 3, 5, 7, 9, 11]
 
 export function getNoteIndex(note: string): number {
-  const sharp = FLAT_TO_SHARP[note] ?? note
-  return CHROMATIC_NOTES.indexOf(sharp)
+  if (!/^[A-G](#{1,2}|b{1,2})?$/.test(note)) return -1
+  const natural = NATURAL_PITCHES[NOTE_LETTERS.indexOf(note[0])]
+  const alteration = (note.length - 1) * (note[1] === 'b' ? -1 : 1)
+  return (natural + alteration + 12) % 12
 }
 
 // Roots that conventionally use flat notation in major context
@@ -217,8 +218,7 @@ function shouldUseFlat(rootNote: string, isMinor: boolean): boolean {
     : MAJOR_FLAT_ROOTS.has(rootNote)
 }
 
-// Exported helper: determines flat/sharp notation for a root+scale combination.
-// Use this in rendering code to stay consistent with getScaleNotes.
+// Chromatic fallback only; scale members use getScaleNotes' degree spelling.
 export function isScaleFlat(rootNote: string, scaleType: ScaleType): boolean {
   return shouldUseFlat(rootNote, SCALE_CHARACTER[scaleType] === 'minor')
 }
@@ -231,7 +231,9 @@ export function noteToSolfege(note: string, rootNote: string): string {
 }
 
 export function noteToFixedSolfege(note: string): string {
-  return FIXED_SOLFEGE_MAP[note] || note
+  return getNoteIndex(note) < 0
+    ? note
+    : FIXED_SOLFEGE_MAP[note[0]] + note.slice(1).replaceAll('b', '♭')
 }
 
 export function noteToInterval(note: string, rootNote: string): string {
@@ -247,6 +249,7 @@ export function getScaleNotes(
 ): string[] {
   const rootIndex = getNoteIndex(rootNote)
 
+  if (rootIndex < 0) return []
   let intervals: number[]
 
   switch (scaleType) {
@@ -284,11 +287,22 @@ export function getScaleNotes(
       intervals = MAJOR_INTERVALS
   }
 
-  const notesArray = shouldUseFlat(rootNote, SCALE_CHARACTER[scaleType] === 'minor')
-    ? NOTES_FLAT
-    : NOTES_SHARP
-
-  return intervals.map(interval => notesArray[(rootIndex + interval) % 12])
+  const degrees =
+    scaleType === 'major-pentatonic'
+      ? [0, 1, 2, 4, 5]
+      : scaleType === 'minor-pentatonic'
+        ? [0, 2, 3, 4, 6]
+        : [0, 1, 2, 3, 4, 5, 6]
+  const rootLetter = NOTE_LETTERS.indexOf(rootNote[0])
+  return intervals.map((interval, index) => {
+    const letter = (rootLetter + degrees[index]) % 7
+    const alteration =
+      ((rootIndex + interval - NATURAL_PITCHES[letter] + 18) % 12) - 6
+    return (
+      NOTE_LETTERS[letter] +
+      (alteration < 0 ? 'b' : '#').repeat(Math.abs(alteration))
+    )
+  })
 }
 
 export function getNoteFromFret(

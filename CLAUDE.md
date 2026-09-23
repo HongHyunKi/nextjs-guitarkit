@@ -27,12 +27,11 @@ components/
   caged-selector.tsx    — CAGED shape toggle
 lib/
   music-utils.ts        — ALL music theory logic (single source of truth)
-  caged-utils.ts        — CAGED system shape ranges
-  scale-tests.ts        — legacy test script, kept for reference only
+  caged-utils.ts        — string-specific CAGED fingering patterns
 test/
   music-utils.test.ts   — canonical test suite (run via `pnpm test`)
 docs/
-  caged-system-spec.md  — CAGED barre/range math, wrap-around guard, bug history
+  caged-system-spec.md  — CAGED fingering sources, transposition and octave repetition
 DESIGN.md               — design system (authoritative for ALL UI styling)
 ```
 
@@ -54,13 +53,18 @@ Never recompute scale membership, flat/sharp preference, or note names anywhere 
 ### Note Representation
 
 - Internal chromatic index: `0` (C) through `11` (B) — always sharp-based internally
-- Display notation: determined at render time based on root key convention
+- Scale spelling: `getScaleNotes` assigns a letter per degree, then accidentals to match pitch. E#, B#, Cb, Fb and double accidentals are intentional.
 - Sharp reference: `['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']`
 - Flat reference: `['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B']`
 
 ### Sharp/Flat Preference Logic (`shouldUseFlat`)
 
 Located in `lib/music-utils.ts`. **Do not duplicate this logic elsewhere.**
+
+This preference is only a chromatic fallback (non-scale notes/audio names), not scale spelling.
+Scale members must use `getScaleNotes` spellings. Mixed accidentals can be correct:
+D harmonic minor is D E F G A Bb C#. Audio stays tied to string/fret MIDI pitch,
+not a theoretical displayed name with an assumed octave.
 
 ```
 if root contains 'b'  → use flats  (e.g. Bb, Eb, Ab)
@@ -92,17 +96,17 @@ if natural root:
 ### Currently Implemented
 
 | ScaleType          | Intervals (semitones) | Formula           |
-| ------------------- | --------------------- | ------------------ |
-| `major`            | [0,2,4,5,7,9,11]      | 1 2 3 4 5 6 7      |
-| `minor`            | [0,2,3,5,7,8,10]      | 1 2 b3 4 5 b6 b7   |
-| `major-pentatonic` | [0,2,4,7,9]           | 1 2 3 5 6          |
-| `minor-pentatonic` | [0,3,5,7,10]          | 1 b3 4 5 b7        |
-| `dorian`           | [0,2,3,5,7,9,10]      | 1 2 b3 4 5 6 b7    |
-| `mixolydian`       | [0,2,4,5,7,9,10]      | 1 2 3 4 5 6 b7     |
-| `lydian`           | [0,2,4,6,7,9,11]      | 1 2 3 #4 5 6 7     |
-| `phrygian`         | [0,1,3,5,7,8,10]      | 1 b2 b3 4 5 b6 b7  |
-| `harmonic-minor`   | [0,2,3,5,7,8,11]      | 1 2 b3 4 5 b6 7    |
-| `melodic-minor`    | [0,2,3,5,7,9,11]      | 1 2 b3 4 5 6 7     |
+| ------------------ | --------------------- | ----------------- |
+| `major`            | [0,2,4,5,7,9,11]      | 1 2 3 4 5 6 7     |
+| `minor`            | [0,2,3,5,7,8,10]      | 1 2 b3 4 5 b6 b7  |
+| `major-pentatonic` | [0,2,4,7,9]           | 1 2 3 5 6         |
+| `minor-pentatonic` | [0,3,5,7,10]          | 1 b3 4 5 b7       |
+| `dorian`           | [0,2,3,5,7,9,10]      | 1 2 b3 4 5 6 b7   |
+| `mixolydian`       | [0,2,4,5,7,9,10]      | 1 2 3 4 5 6 b7    |
+| `lydian`           | [0,2,4,6,7,9,11]      | 1 2 3 #4 5 6 7    |
+| `phrygian`         | [0,1,3,5,7,8,10]      | 1 b2 b3 4 5 b6 b7 |
+| `harmonic-minor`   | [0,2,3,5,7,8,11]      | 1 2 b3 4 5 b6 7   |
+| `melodic-minor`    | [0,2,3,5,7,9,11]      | 1 2 b3 4 5 6 7    |
 
 See "Adding a New Scale — Step-by-Step" below for the checklist to follow when extending this catalog.
 
@@ -118,7 +122,7 @@ The `MINOR_FLAT_ROOTS` set (`D G C F Bb Eb Ab`) is an approximation. Edge cases:
 - `E minor` → uses sharps (F#) ✓ (E not in set)
 - `A minor` → no accidentals, either works ✓
 
-When adding modes, verify the flat-root sets match conventional key signatures for each mode's parallel roots.
+When adding modes, verify their degree letters and semitone intervals; do not infer spelling from a flat-root set.
 
 ---
 
@@ -131,7 +135,7 @@ pnpm test
 ```
 
 Tests live in `test/music-utils.test.ts` and run via Jest + ts-jest.
-The legacy `lib/scale-tests.ts` script is kept for reference but `pnpm test` is the canonical command.
+`pnpm test` is the canonical command. The obsolete simplified-spelling legacy script was removed; reference cases live in `test/music-utils.test.ts`.
 
 ### Required Coverage for Any Scale
 
@@ -150,7 +154,7 @@ A scale implementation is only considered correct when all of the following pass
 
 - Correct number of notes (e.g., 5 for pentatonic, 7 for diatonic)
 - Root note spelled correctly (must match the input root, not its enharmonic)
-- All notes use consistent accidental style (no mixing `F#` and `Gb` in the same scale)
+- Degree letters are correct (seven-note scales use each letter once; pentatonics use degrees 1/2/3/5/6 or 1/3/4/5/7). Do not prohibit mixed accidentals.
 - Notes are in ascending interval order from root
 
 **3. Cross-check against known reference:**
@@ -171,7 +175,7 @@ verify(root, intervals) {
 Enharmonic roots (e.g., `C#` and `Db`) should produce enharmonically equivalent scales with appropriate spelling:
 
 ```
-C# Major Pentatonic: C# D# F  G# A#
+C# Major Pentatonic: C# D# E# G# A#
 Db Major Pentatonic: Db Eb F  Ab Bb
 ```
 
@@ -179,25 +183,25 @@ These should be tested as a pair.
 
 ### Example: Correct Major Pentatonic for All 12 Roots
 
-| Root | Scale          |
-| ---- | -------------- |
-| C    | C D E G A      |
-| C#   | C# D# F G# A#  |
-| Db   | Db Eb F Ab Bb  |
-| D    | D E F# A B     |
-| D#   | D# F G A# C    |
-| Eb   | Eb F G Bb C    |
-| E    | E F# G# B C#   |
-| F    | F G A C D      |
-| F#   | F# G# A# C# D# |
-| Gb   | Gb Ab Bb Db Eb |
-| G    | G A B D E      |
-| G#   | G# A# C D# F   |
-| Ab   | Ab Bb C Eb F   |
-| A    | A B C# E F#    |
-| A#   | A# C D F G     |
-| Bb   | Bb C D F G     |
-| B    | B C# D# F# G#  |
+| Root | Scale            |
+| ---- | ---------------- |
+| C    | C D E G A        |
+| C#   | C# D# E# G# A#   |
+| Db   | Db Eb F Ab Bb    |
+| D    | D E F# A B       |
+| D#   | D# E# F## A# B#  |
+| Eb   | Eb F G Bb C      |
+| E    | E F# G# B C#     |
+| F    | F G A C D        |
+| F#   | F# G# A# C# D#   |
+| Gb   | Gb Ab Bb Db Eb   |
+| G    | G A B D E        |
+| G#   | G# A# B# D# E#   |
+| Ab   | Ab Bb C Eb F     |
+| A    | A B C# E F#      |
+| A#   | A# B# C## E# F## |
+| Bb   | Bb C D F G       |
+| B    | B C# D# F# G#    |
 
 ---
 
@@ -245,6 +249,6 @@ These should be tested as a pair.
 ## Code Quality Constraints
 
 - **No hardcoded note lists for scale output** — always derive from root + intervals
-- **No duplicate flat/sharp logic** — `shouldUseFlat` in `music-utils.ts` is the only place this is decided
+- **No duplicate spelling logic** — `getScaleNotes` determines scale spelling; `shouldUseFlat` is only the chromatic fallback
 - **String comparison for note matching is fragile** — prefer chromatic index comparison (`getNoteIndex`) when checking scale membership in rendering code
 - **`ScaleType` is the only type for scale identification** — never use raw strings

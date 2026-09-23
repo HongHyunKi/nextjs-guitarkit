@@ -1,186 +1,31 @@
-# CAGED System — Architecture & Implementation Spec
+# CAGED 운지 기준
 
-> This file is the authoritative reference for the CAGED system implementation.
-> Read it fully before modifying `lib/caged-utils.ts`, `components/caged-selector.tsx`, or related tests.
+CAGED는 C·A·G·E·D 오픈 코드 모양을 옮겨 지판을 이해하는 체계다.
+스케일의 종류가 아니며, 코드 주변의 스케일 음을 여러 운지로 묶을 수 있다.
+앱은 아래 자료의 한 가지 운지 관례를 사용한다. 유일한 정답 운지라고 주장하지 않는다.
 
----
+## 지원 범위와 출처
 
-## What Is CAGED
+- 메이저: [Applied Guitar Theory의 G major 다섯 포지션 도표](https://appliedguitartheory.com/lessons/major-scale/). 도표 1–5는 E·D·C·A·G 코드 모양에 대응한다.
+- 메이저 펜타토닉: 위 메이저 운지에서 4도·7도를 제거한다.
+- 마이너 펜타토닉: [A minor pentatonic 다섯 포지션 도표](https://appliedguitartheory.com/scale/a-minor-pentatonic-scale/). 같은 으뜸음의 마이너 코드 모양 기준으로 E·D·C·A·G에 대응한다. 관계장조의 모양 이름과 혼동하지 않는다.
+- 나머지 스케일은 전체 지판만 제공한다. 기존 CAGED 설정이 저장되어 있어도 적용하지 않는다.
 
-The CAGED system maps 5 open chord shapes (C, A, G, E, D) across the fretboard.
-Each shape repeats every 12 frets. Together they tile the entire neck with no gaps.
+## 계산 규칙
 
-A shape is identified by its **chord identity** (which open chord it resembles), not by its position on the neck.
+`lib/caged-utils.ts`가 단일 기준이다. 각 모양에 6번 줄→1번 줄 순서로 정확한 프렛 오프셋을 둔다.
+배레 기준점은 `(rootIndex - openChordRoot + 12) % 12`로 이동한다.
+같은 패턴은 12프렛마다 반복하며, 너트에서 잘린 이전 옥타브의 일부도 표시한다.
+따라서 0·12·24프렛은 패턴 소속이 같다. 음표 전체를 직사각형 프렛 범위로 묶지 않는다.
+예: C major E 모양은 5·4·3번 줄 7프렛을 포함하지만 2번 줄 7프렛은 포함하지 않는다.
 
----
+루트 랜드마크는 C=5번 줄 배레+3, A=5번 줄 배레, G=6번 줄 배레+3,
+E=6번 줄 배레, D=4번 줄 배레다. 화면의 표시 구간 밖에 있을 수 있다.
 
-## Barre Fret Calculation
+## 회귀 검증
 
-Each shape has a base note — the open-position root of that chord form:
+`test/caged-utils.test.ts`는 출처 도표의 절대 프렛을 별도 전사한 기대값으로 사용한다.
+12개 음높이 × 지원 스케일 3종 × 5개 모양 × 6개 줄 × 0–24프렛을 검사한다.
+음정 소속, 전체 지판 커버리지, 루트 랜드마크, 미지원 스케일도 검사한다.
 
-| Shape | Open root | Base index |
-| ----- | --------- | ---------- |
-| E     | E         | 4          |
-| A     | A         | 9          |
-| G     | G         | 7          |
-| D     | D         | 2          |
-| C     | C         | 0          |
-
-```
-barre = (rootIndex - baseNote + 12) % 12
-```
-
-### Reference: barre frets by root
-
-| Root  | C   | A   | G   | E   | D   |
-| ----- | --- | --- | --- | --- | --- |
-| C (0) | 0   | 3   | 5   | 8   | 10  |
-| G (7) | 7   | 10  | 0   | 3   | 5   |
-| A (9) | 9   | 0   | 2   | 5   | 7   |
-
----
-
-## Shape Range Calculation
-
-Each shape owns a fret range: from its own barre fret up to (but not including) the next shape's barre fret. Adjacent shapes overlap slightly (CAGED shared notes — intentional).
-
-```
-low      = barre + SHAPE_LOW_OFFSET[shape]     // currently 0 for all shapes
-highBase = next_barre + SHAPE_HIGH_OFFSET[shape]
-high     = highBase <= low ? highBase + 12 : highBase   // wrap-around guard
-```
-
-### SHAPE_HIGH_OFFSET
-
-The `high` boundary extends slightly past the next shape's barre to include notes shared between adjacent shapes:
-
-| Shape | offset | Notes                                            |
-| ----- | ------ | ------------------------------------------------ |
-| C     | +1     | C chord pattern extends one fret past next barre |
-| A     | +1     | same                                             |
-| G     | 0      | G chord pattern ends exactly at next barre       |
-| E     | +1     | same as C/A/D                                    |
-| D     | +1     | same                                             |
-
-### Wrap-around
-
-The last shape in sorted order has a `next` that wraps back to sorted[0], whose barre is smaller. When `highBase <= low`, add 12:
-
-```typescript
-const high = highBase <= low ? highBase + 12 : highBase
-```
-
-### 2nd octave (frets ≥ 12)
-
-```typescript
-const f = fret % 12
-return (
-  (f >= low && f <= high) || (fret >= 12 && f + 12 >= low && f + 12 <= high)
-)
-```
-
-**Critical guard:** the `fret >= 12` condition on the second clause prevents open-string frets (0–11) from being pulled into high wrap-around positions. Without it, e.g. Am C shape [9,13]: fret 0 → f+12=12 ∈ [9,13] would incorrectly return true.
-
----
-
-## Am Reference Table
-
-Am sorted barres: A[0], G[2], E[5], D[7], C[9]
-
-| Shape | barre | range  | 2nd octave |
-| ----- | ----- | ------ | ---------- |
-| A     | 0     | [0, 3] | [12, 15]   |
-| G     | 2     | [2, 5] | [14, 17]   |
-| E     | 5     | [5, 8] | [17, 20]   |
-| D     | 7     | [7,10] | [19, 22]   |
-| C     | 9     | [9,13] | [21, 25]   |
-
----
-
-## Architecture Rules
-
-### The Golden Rule
-
-**Shape labels must reflect chord identity, not sorted position.**
-
-`isInCAGEDShapeRange(fret, root, 'E')` must always find the E-shape region regardless of where E lands in the sorted barre order for a given root.
-
-### Lookup pattern (correct)
-
-```typescript
-const idx = sorted.findIndex(s => s.shape === shape)
-```
-
-### Anti-pattern (wrong — caused the positional labeling bug)
-
-```typescript
-// NEVER do this — maps fixed labels to fixed sorted positions
-const LABEL_TO_POSITION_IDX = { C: 0, A: 1, G: 2, E: 3, D: 4 }
-const positionIdx = LABEL_TO_POSITION_IDX[shape] // wrong for any root ≠ C
-```
-
----
-
-## Bug History
-
-### Positional Label Bug (fixed in commit `86d6ae1` area)
-
-**Symptom:** Selecting any shape showed the wrong fret region for all roots except C major.
-
-**Root cause:** `POSITION_TO_LABEL` assigned labels C→A→G→E→D to sorted positions 0→4, regardless of which chord shape was actually at each position. `LABEL_TO_POSITION_IDX` reversed this — mapping labels back to fixed position indices.
-
-**Example (G major, select "E shape"):**
-
-```
-Sorted barres: G[0], E[3], D[5], C[7], A[10]
-Old code: LABEL_TO_POSITION_IDX['E'] = 3 → sorted[3] = {C, barre:7}
-Result: frets 7-10 highlighted  ← wrong (C shape region)
-Expected: frets 3-6 highlighted ← E shape region
-```
-
-**Fix:** removed both lookup tables; replaced with `findIndex` by shape identity.
-
-**Scope:** C major worked by coincidence (sorted order happens to be C→A→G→E→D). All other 11 roots were broken.
-
----
-
-## File Map
-
-| File                            | Responsibility                                                   |
-| ------------------------------- | ---------------------------------------------------------------- |
-| `lib/caged-utils.ts`            | Barre calculation, range membership — single source of truth     |
-| `components/caged-selector.tsx` | UI: C / A / G / E / D / All toggle                               |
-| `components/fretboard.tsx`      | Calls `isInCAGEDShapeRange` to decide highlight per fret         |
-| `test/caged-utils.test.ts`      | Unit tests: Am + C major full range, octave wrapping, regression |
-
----
-
-## Test Requirements
-
-A CAGED implementation is only considered correct when all of the following pass:
-
-**1. Shape identity is preserved across roots**
-
-- Selecting "E shape" on G major → frets 3–6 highlighted (E barre at 3)
-- Selecting "E shape" on Am → frets 5–8 highlighted (E barre at 5)
-
-**2. Range boundaries are exact**
-
-- Boundary frets (low and high) are IN range
-- low-1 and high+1 are NOT in range
-
-**3. 2nd octave wrapping is correct**
-
-- shape[low,high] → 2nd octave [low+12, high+12]
-- frets 0–11 must NOT bleed into wrap-around high positions
-
-**4. Adjacent shape overlap is intentional**
-
-- G and E shapes for Am both include fret 5 (shared CAGED transition note) — this is correct, not a bug
-
-**Recommended roots to test:**
-
-- C major (canonical — sorted order matches shape order)
-- G major (sorted order is G→E→D→C→A, non-standard)
-- Am (sorted order is A→G→E→D→C)
-- D# minor (verifies no shape region overlap or misassignment on a sharp root)
+이전의 다음 배레까지 범위를 칠하는 방식과 그 범위만 검증하던 테스트는 폐기했다.

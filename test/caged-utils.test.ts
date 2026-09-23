@@ -1,359 +1,185 @@
-import { getNoteIndex } from '@/lib/music-utils'
-import { CAGED_SHAPES, CAGEDShape, getBarreFret, isInCAGEDShapeRange } from '@/lib/caged-utils'
+import {
+  CHROMATIC_NOTES,
+  getNoteIndex,
+  getScaleNotes,
+  STANDARD_TUNING_MIDI,
+  ScaleType,
+} from '@/lib/music-utils'
+import {
+  CAGED_SHAPES,
+  CAGEDShape,
+  getShapeRootPosition,
+  isInCAGEDShape,
+  supportsCAGED,
+} from '@/lib/caged-utils'
 
-// ─── getBarreFret ─────────────────────────────────────────────────────────────
+// Transcribed absolute frets, low E → high E, from the five diagrams per source.
+// https://appliedguitartheory.com/lessons/major-scale/ (G major positions 1–5 = E,D,C,A,G)
+const G_MAJOR: Record<CAGEDShape, number[][]> = {
+  E: [
+    [2, 3, 5],
+    [2, 3, 5],
+    [2, 4, 5],
+    [2, 4, 5],
+    [3, 5],
+    [2, 3, 5],
+  ],
+  D: [
+    [5, 7, 8],
+    [5, 7],
+    [4, 5, 7],
+    [4, 5, 7],
+    [5, 7, 8],
+    [5, 7, 8],
+  ],
+  C: [
+    [7, 8, 10],
+    [7, 9, 10],
+    [7, 9, 10],
+    [7, 9],
+    [7, 8, 10],
+    [7, 8, 10],
+  ],
+  A: [
+    [8, 10, 12],
+    [9, 10, 12],
+    [9, 10, 12],
+    [9, 11, 12],
+    [10, 12, 13],
+    [10, 12],
+  ],
+  G: [
+    [12, 14, 15],
+    [12, 14, 15],
+    [12, 14],
+    [11, 12, 14],
+    [12, 13, 15],
+    [12, 14, 15],
+  ],
+}
+// https://appliedguitartheory.com/scale/a-minor-pentatonic-scale/
+const A_MINOR_PENT: Record<CAGEDShape, number[][]> = {
+  E: [
+    [5, 8],
+    [5, 7],
+    [5, 7],
+    [5, 7],
+    [5, 8],
+    [5, 8],
+  ],
+  D: [
+    [8, 10],
+    [7, 10],
+    [7, 10],
+    [7, 9],
+    [8, 10],
+    [8, 10],
+  ],
+  C: [
+    [10, 12],
+    [10, 12],
+    [10, 12],
+    [9, 12],
+    [10, 13],
+    [10, 12],
+  ],
+  A: [
+    [12, 15],
+    [12, 15],
+    [12, 14],
+    [12, 14],
+    [13, 15],
+    [12, 15],
+  ],
+  G: [
+    [3, 5],
+    [3, 5],
+    [2, 5],
+    [2, 5],
+    [3, 5],
+    [3, 5],
+  ],
+}
 
-describe('getBarreFret', () => {
-  it('C major: C[0] A[3] G[5] E[8] D[10]', () => {
-    const root = getNoteIndex('C')
-    expect(getBarreFret(root, 'C')).toBe(0)
-    expect(getBarreFret(root, 'A')).toBe(3)
-    expect(getBarreFret(root, 'G')).toBe(5)
-    expect(getBarreFret(root, 'E')).toBe(8)
-    expect(getBarreFret(root, 'D')).toBe(10)
-  })
-
-  it('Am (A): A[0] G[2] E[5] D[7] C[9]', () => {
-    const root = getNoteIndex('A')
-    expect(getBarreFret(root, 'A')).toBe(0)
-    expect(getBarreFret(root, 'G')).toBe(2)
-    expect(getBarreFret(root, 'E')).toBe(5)
-    expect(getBarreFret(root, 'D')).toBe(7)
-    expect(getBarreFret(root, 'C')).toBe(9)
-  })
-
-  it('G major: G[0] E[3] D[5] C[7] A[10]', () => {
-    const root = getNoteIndex('G')
-    expect(getBarreFret(root, 'G')).toBe(0)
-    expect(getBarreFret(root, 'E')).toBe(3)
-    expect(getBarreFret(root, 'D')).toBe(5)
-    expect(getBarreFret(root, 'C')).toBe(7)
-    expect(getBarreFret(root, 'A')).toBe(10)
-  })
-
-  it('E shape barre matches (rootIndex - 4 + 12) % 12 for all 12 roots', () => {
-    const roots = [
-      'C',
-      'C#',
-      'D',
-      'D#',
-      'E',
-      'F',
-      'F#',
-      'G',
-      'G#',
-      'A',
-      'A#',
-      'B',
-    ]
-    roots.forEach(r => {
-      const idx = getNoteIndex(r)
-      const expected = (idx - 4 + 12) % 12
-      expect(getBarreFret(idx, 'E')).toBe(expected)
-    })
-  })
-})
-
-// ─── isInCAGEDShapeRange — shape identity property ────────────────────────────
-//
-// Regression guard for the "positional label bug": a previous implementation
-// looked up shapes by a FIXED position index instead of their actual identity,
-// which only produced correct results for root=C (where sorted barre order
-// happens to equal the reference order [C,A,G,E,D]). Verified independently
-// (outside this codebase, via a standalone script) that the buggy version
-// fails this property for 42 of 60 (root, shape) combinations, while the
-// fixed `findIndex`-based lookup passes all 60.
-//
-// The property: selecting shape S must always highlight S's OWN barre fret.
-
-describe('isInCAGEDShapeRange — shape identity property (60-case sweep)', () => {
-  const roots = [
-    'C',
-    'C#',
-    'D',
-    'D#',
-    'E',
-    'F',
-    'F#',
-    'G',
-    'G#',
-    'A',
-    'A#',
-    'B',
-  ]
-
-  const cases = roots.flatMap(root =>
-    CAGED_SHAPES.map(shape => ({ root, shape }))
-  )
-
-  it.each(cases)(
-    "selecting '$shape' includes $shape's own barre fret for root $root",
-    ({ root, shape }) => {
-      const barre = getBarreFret(getNoteIndex(root), shape as CAGEDShape)
-      expect(isInCAGEDShapeRange(barre, root, shape as CAGEDShape)).toBe(true)
+describe('reference CAGED fingerings, all roots and 0–24 frets', () => {
+  for (const scaleType of [
+    'major',
+    'major-pentatonic',
+    'minor-pentatonic',
+  ] as ScaleType[]) {
+    const minor = scaleType === 'minor-pentatonic'
+    const reference = minor ? A_MINOR_PENT : G_MAJOR
+    const referenceRoot = minor ? 9 : 7
+    for (const root of CHROMATIC_NOTES) {
+      it(`${root} ${scaleType}: all five shapes match the transposed diagrams`, () => {
+        const shift = getNoteIndex(root) - referenceRoot
+        for (const shape of CAGED_SHAPES) {
+          for (let stringIndex = 0; stringIndex < 6; stringIndex++) {
+            for (let fret = 0; fret <= 24; fret++) {
+              const pitch =
+                (STANDARD_TUNING_MIDI[stringIndex] + fret - shift + 12) % 12
+              const pentDegree = [7, 9, 11, 2, 4].includes(pitch) // G major pentatonic, independently specified
+              const expected =
+                reference[shape][5 - stringIndex].some(
+                  f => (fret - shift - f) % 12 === 0
+                ) &&
+                (scaleType !== 'major-pentatonic' || pentDegree)
+              expect(
+                isInCAGEDShape(stringIndex, fret, root, scaleType, shape)
+              ).toBe(expected)
+            }
+          }
+        }
+      })
     }
-  )
+  }
 })
 
-// ─── isInCAGEDShapeRange — Am pentatonic reference positions ──────────────────
-
-describe('isInCAGEDShapeRange — Am reference positions', () => {
-  // Am sorted barres: A[0], G[2], E[5], D[7], C[9]
-  // Ranges verified independently against raw fretboard note data:
-  // the E shape [5,8] box (6th string frets 5,8 and 1st string frets 5,8)
-  // matches the widely-known "Am pentatonic box 1" diagram exactly.
-
-  describe('A shape [0, 3]', () => {
-    it('fret 0 is IN range', () =>
-      expect(isInCAGEDShapeRange(0, 'A', 'A')).toBe(true))
-    it('fret 3 is IN range', () =>
-      expect(isInCAGEDShapeRange(3, 'A', 'A')).toBe(true))
-    it('fret 4 is NOT in range', () =>
-      expect(isInCAGEDShapeRange(4, 'A', 'A')).toBe(false))
-  })
-
-  describe('G shape [2, 5]', () => {
-    it('fret 2 is IN range', () =>
-      expect(isInCAGEDShapeRange(2, 'A', 'G')).toBe(true))
-    it('fret 5 is IN range', () =>
-      expect(isInCAGEDShapeRange(5, 'A', 'G')).toBe(true))
-    it('fret 1 is NOT in range', () =>
-      expect(isInCAGEDShapeRange(1, 'A', 'G')).toBe(false))
-    it('fret 6 is NOT in range', () =>
-      expect(isInCAGEDShapeRange(6, 'A', 'G')).toBe(false))
-  })
-
-  describe('E shape [5, 8] — matches "Am pentatonic box 1"', () => {
-    it('fret 5 is IN range', () =>
-      expect(isInCAGEDShapeRange(5, 'A', 'E')).toBe(true))
-    it('fret 8 is IN range', () =>
-      expect(isInCAGEDShapeRange(8, 'A', 'E')).toBe(true))
-    it('fret 4 is NOT in range', () =>
-      expect(isInCAGEDShapeRange(4, 'A', 'E')).toBe(false))
-    it('fret 9 is NOT in range', () =>
-      expect(isInCAGEDShapeRange(9, 'A', 'E')).toBe(false))
-  })
-
-  describe('D shape [7, 10]', () => {
-    it('fret 7 is IN range', () =>
-      expect(isInCAGEDShapeRange(7, 'A', 'D')).toBe(true))
-    it('fret 10 is IN range', () =>
-      expect(isInCAGEDShapeRange(10, 'A', 'D')).toBe(true))
-    it('fret 6 is NOT in range', () =>
-      expect(isInCAGEDShapeRange(6, 'A', 'D')).toBe(false))
-    it('fret 11 is NOT in range', () =>
-      expect(isInCAGEDShapeRange(11, 'A', 'D')).toBe(false))
-  })
-
-  describe('C shape [9, 13]', () => {
-    it('fret 9 is IN range', () =>
-      expect(isInCAGEDShapeRange(9, 'A', 'C')).toBe(true))
-    it('fret 12 is IN range', () =>
-      expect(isInCAGEDShapeRange(12, 'A', 'C')).toBe(true))
-    it('fret 13 is IN range (B string C note — top of C chord shape pattern)', () =>
-      expect(isInCAGEDShapeRange(13, 'A', 'C')).toBe(true))
-    it('fret 8 is NOT in range', () =>
-      expect(isInCAGEDShapeRange(8, 'A', 'C')).toBe(false))
-    it('fret 14 is NOT in range', () =>
-      expect(isInCAGEDShapeRange(14, 'A', 'C')).toBe(false))
-    it('fret 0 is NOT in range (open strings must not bleed into wrap-around C pos)', () =>
-      expect(isInCAGEDShapeRange(0, 'A', 'C')).toBe(false))
-    it('fret 1 is NOT in range', () =>
-      expect(isInCAGEDShapeRange(1, 'A', 'C')).toBe(false))
-  })
+it('includes C major E-shape notes below the barre and excludes another string at the same fret', () => {
+  expect(isInCAGEDShape(4, 7, 'C', 'major', 'E')).toBe(true)
+  expect(isInCAGEDShape(3, 7, 'C', 'major', 'E')).toBe(true)
+  expect(isInCAGEDShape(2, 7, 'C', 'major', 'E')).toBe(true)
+  expect(isInCAGEDShape(1, 7, 'C', 'major', 'E')).toBe(false)
 })
 
-describe('isInCAGEDShapeRange — C major reference positions', () => {
-  // C major: C[0,4] A[3,6] G[5,8] E[8,11] D[10,13]
-  // Note: C shape extends to fret 4 (C chord shape span = next_barre + 1)
-  // fret 4 has no C major pentatonic note so no visual effect, but zone boundary is at 4.
-
-  it('C shape covers frets 0-4', () => {
-    expect(isInCAGEDShapeRange(0, 'C', 'C')).toBe(true)
-    expect(isInCAGEDShapeRange(3, 'C', 'C')).toBe(true)
-    expect(isInCAGEDShapeRange(4, 'C', 'C')).toBe(true)
-    expect(isInCAGEDShapeRange(5, 'C', 'C')).toBe(false)
-  })
-
-  it('A shape covers frets 3-6', () => {
-    expect(isInCAGEDShapeRange(3, 'C', 'A')).toBe(true)
-    expect(isInCAGEDShapeRange(6, 'C', 'A')).toBe(true)
-    expect(isInCAGEDShapeRange(2, 'C', 'A')).toBe(false)
-    expect(isInCAGEDShapeRange(7, 'C', 'A')).toBe(false)
-  })
-
-  it('G shape covers frets 5-8', () => {
-    expect(isInCAGEDShapeRange(5, 'C', 'G')).toBe(true)
-    expect(isInCAGEDShapeRange(8, 'C', 'G')).toBe(true)
-    expect(isInCAGEDShapeRange(4, 'C', 'G')).toBe(false)
-    expect(isInCAGEDShapeRange(9, 'C', 'G')).toBe(false)
-  })
-
-  it('E shape covers frets 8-11 (root at 6th string fret 8)', () => {
-    expect(isInCAGEDShapeRange(8, 'C', 'E')).toBe(true)
-    expect(isInCAGEDShapeRange(11, 'C', 'E')).toBe(true)
-    expect(isInCAGEDShapeRange(7, 'C', 'E')).toBe(false)
-    expect(isInCAGEDShapeRange(12, 'C', 'E')).toBe(false)
-  })
-
-  it('D shape covers frets 10-13', () => {
-    expect(isInCAGEDShapeRange(10, 'C', 'D')).toBe(true)
-    expect(isInCAGEDShapeRange(13, 'C', 'D')).toBe(true)
-    expect(isInCAGEDShapeRange(9, 'C', 'D')).toBe(false)
-    expect(isInCAGEDShapeRange(14, 'C', 'D')).toBe(false)
-  })
+it('landmarks are root notes; five patterns cover every scale note', () => {
+  for (const root of CHROMATIC_NOTES) {
+    for (const shape of CAGED_SHAPES) {
+      const position = getShapeRootPosition(root, shape)
+      expect(
+        (STANDARD_TUNING_MIDI[position.string - 1] + position.fret) % 12
+      ).toBe(getNoteIndex(root))
+    }
+    for (const scale of [
+      'major',
+      'major-pentatonic',
+      'minor-pentatonic',
+    ] as ScaleType[]) {
+      const pitches = getScaleNotes(root, scale).map(getNoteIndex)
+      for (let s = 0; s < 6; s++)
+        for (let f = 0; f <= 24; f++) {
+          expect(
+            CAGED_SHAPES.some(shape => isInCAGEDShape(s, f, root, scale, shape))
+          ).toBe(pitches.includes((STANDARD_TUNING_MIDI[s] + f) % 12))
+        }
+    }
+  }
 })
 
-describe('isInCAGEDShapeRange — G major reference positions (non-trivial rotation regression)', () => {
-  // G major sorted barres: G[0] E[3] D[5] C[7] A[10] — NOT the [C,A,G,E,D]
-  // reference order, so this is exactly the case the positional-label bug
-  // got wrong (e.g. querying "E" used to return the C-shape's range [7,11]
-  // instead of E's own [3,6]). Verified independently via getBarreFret above.
-  // Ranges: G[0,3] E[3,6] D[5,8] C[7,11] A[10,13]
-
-  it('G shape covers frets 0-3', () => {
-    expect(isInCAGEDShapeRange(0, 'G', 'G')).toBe(true)
-    expect(isInCAGEDShapeRange(3, 'G', 'G')).toBe(true)
-    expect(isInCAGEDShapeRange(4, 'G', 'G')).toBe(false)
-  })
-
-  it('E shape covers frets 3-6 (not the C-shape\'s 7-11 — the historical bug)', () => {
-    expect(isInCAGEDShapeRange(3, 'G', 'E')).toBe(true)
-    expect(isInCAGEDShapeRange(6, 'G', 'E')).toBe(true)
-    expect(isInCAGEDShapeRange(2, 'G', 'E')).toBe(false)
-    expect(isInCAGEDShapeRange(7, 'G', 'E')).toBe(false)
-  })
-
-  it('D shape covers frets 5-8', () => {
-    expect(isInCAGEDShapeRange(5, 'G', 'D')).toBe(true)
-    expect(isInCAGEDShapeRange(8, 'G', 'D')).toBe(true)
-    expect(isInCAGEDShapeRange(4, 'G', 'D')).toBe(false)
-    expect(isInCAGEDShapeRange(9, 'G', 'D')).toBe(false)
-  })
-
-  it('C shape covers frets 7-11', () => {
-    expect(isInCAGEDShapeRange(7, 'G', 'C')).toBe(true)
-    expect(isInCAGEDShapeRange(11, 'G', 'C')).toBe(true)
-    expect(isInCAGEDShapeRange(6, 'G', 'C')).toBe(false)
-    expect(isInCAGEDShapeRange(12, 'G', 'C')).toBe(false)
-  })
-
-  it('A shape covers frets 10-13 (wraps past fret 12)', () => {
-    expect(isInCAGEDShapeRange(10, 'G', 'A')).toBe(true)
-    expect(isInCAGEDShapeRange(13, 'G', 'A')).toBe(true)
-    expect(isInCAGEDShapeRange(9, 'G', 'A')).toBe(false)
-    expect(isInCAGEDShapeRange(14, 'G', 'A')).toBe(false)
-  })
-})
-
-describe('isInCAGEDShapeRange — wrap-around edge cases', () => {
-  it('Am A shape (pos 0): fret 0 (open) and fret 12 (2nd octave) both in range', () => {
-    expect(isInCAGEDShapeRange(0, 'A', 'A')).toBe(true)
-    // fret 12 = 2nd octave start of A shape (pos 0) — should be IN range
-    expect(isInCAGEDShapeRange(12, 'A', 'A')).toBe(true)
-  })
-
-  it('frets beyond 12 handled without wrapping mod', () => {
-    // C major D shape [10,13] — fret 13 is valid
-    expect(isInCAGEDShapeRange(13, 'C', 'D')).toBe(true)
-    expect(isInCAGEDShapeRange(14, 'C', 'D')).toBe(false)
-  })
-
-  it('1st octave frets (0-11) do NOT bleed into wrap-around positions (regression)', () => {
-    // Bug: (f+12) condition was applied to fret 0-11, causing open strings
-    // to be incorrectly included in high wrap-around positions.
-    // Am D pos [7,10]: fret 0/1 must not be pulled into any wrap-around window.
-    expect(isInCAGEDShapeRange(0, 'A', 'D')).toBe(false)
-    expect(isInCAGEDShapeRange(1, 'A', 'D')).toBe(false)
-    // C major D pos [10,13]
-    expect(isInCAGEDShapeRange(0, 'C', 'D')).toBe(false)
-    expect(isInCAGEDShapeRange(1, 'C', 'D')).toBe(false)
-    // B minor D pos [9,12]: frets 0-3 must not be incorrectly true
-    expect(isInCAGEDShapeRange(0, 'B', 'D')).toBe(false)
-    expect(isInCAGEDShapeRange(3, 'B', 'D')).toBe(false)
-  })
-})
-
-// ─── Am pentatonic — full fretboard (frets 1-24) ─────────────────────────────
-
-describe('Am — frets 1-24 octave wrapping', () => {
-  // Am sorted barres: A[0] G[2] E[5] D[7] C[9]
-  // Ranges: A[0,3] G[2,5] E[5,8] D[7,10] C[9,13]
-  // 2nd octave: A[12,15] G[14,17] E[17,20] D[19,22] C[21,25]
-  const root = 'A'
-
-  describe('A shape [0,3] → 2nd octave [12,15]', () => {
-    it.each([1, 2, 3])('fret %i ∈ A shape (1st octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'A')).toBe(true)
-    )
-    it.each([4, 5, 11])('fret %i ∉ A shape', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'A')).toBe(false)
-    )
-    it.each([12, 13, 14, 15])('fret %i ∈ A shape (2nd octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'A')).toBe(true)
-    )
-    it.each([16, 17])('fret %i ∉ A shape (2nd octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'A')).toBe(false)
-    )
-  })
-
-  describe('G shape [2,5] → 2nd octave [14,17]', () => {
-    it.each([2, 3, 4, 5])('fret %i ∈ G shape (1st octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'G')).toBe(true)
-    )
-    it.each([1, 6])('fret %i ∉ G shape', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'G')).toBe(false)
-    )
-    it.each([14, 15, 16, 17])('fret %i ∈ G shape (2nd octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'G')).toBe(true)
-    )
-    it.each([13, 18])('fret %i ∉ G shape (2nd octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'G')).toBe(false)
-    )
-  })
-
-  describe('E shape [5,8] → 2nd octave [17,20]', () => {
-    it.each([5, 6, 7, 8])('fret %i ∈ E shape (1st octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'E')).toBe(true)
-    )
-    it.each([4, 9])('fret %i ∉ E shape', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'E')).toBe(false)
-    )
-    it.each([17, 18, 19, 20])('fret %i ∈ E shape (2nd octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'E')).toBe(true)
-    )
-    it.each([16, 21])('fret %i ∉ E shape (2nd octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'E')).toBe(false)
-    )
-  })
-
-  describe('D shape [7,10] → 2nd octave [19,22]', () => {
-    it.each([7, 8, 9, 10])('fret %i ∈ D shape (1st octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'D')).toBe(true)
-    )
-    it.each([6, 11])('fret %i ∉ D shape', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'D')).toBe(false)
-    )
-    it.each([19, 20, 21, 22])('fret %i ∈ D shape (2nd octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'D')).toBe(true)
-    )
-    it.each([18, 23])('fret %i ∉ D shape (2nd octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'D')).toBe(false)
-    )
-  })
-
-  describe('C shape [9,13] → 2nd octave [21,25]', () => {
-    it.each([9, 10, 11, 12, 13])('fret %i ∈ C shape (1st octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'C')).toBe(true)
-    )
-    it.each([8, 14])('fret %i ∉ C shape', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'C')).toBe(false)
-    )
-    it.each([21, 22, 23, 24])('fret %i ∈ C shape (2nd octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'C')).toBe(true)
-    )
-    it.each([20])('fret %i ∉ C shape (2nd octave)', fret =>
-      expect(isInCAGEDShapeRange(fret, root, 'C')).toBe(false)
-    )
-  })
+it('does not claim patterns for unsupported scales or invalid positions', () => {
+  for (const scale of [
+    'minor',
+    'dorian',
+    'mixolydian',
+    'lydian',
+    'phrygian',
+    'harmonic-minor',
+    'melodic-minor',
+  ] as ScaleType[]) {
+    expect(supportsCAGED(scale)).toBe(false)
+    expect(isInCAGEDShape(0, 0, 'C', scale, 'C')).toBe(false)
+  }
+  expect(isInCAGEDShape(-1, 0, 'C', 'major', 'C')).toBe(false)
+  expect(isInCAGEDShape(0, -1, 'C', 'major', 'C')).toBe(false)
+  expect(isInCAGEDShape(0, 0, 'invalid', 'major', 'C')).toBe(false)
 })

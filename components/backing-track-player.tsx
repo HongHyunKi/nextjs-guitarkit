@@ -170,7 +170,7 @@ export function BackingTrackPlayer({
     handleBpmInputChange,
     handleBpmBlur,
     handleTapTempo,
-  } = useBpmControl({ initialBpm: 90, min: 60, max: 200 })
+  } = useBpmControl({ initialBpm: 90, min: 60, max: 200, storageKey: 'guitarkit:backing-bpm' })
   const [style, setStyle] = useState<BackingStyle>('rock')
   const [progressionOverride, setProgressionOverride] = useState<
     number[] | null
@@ -394,14 +394,14 @@ export function BackingTrackPlayer({
   return (
     <div className="bg-card border border-border rounded-xl p-6 space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative inline-flex p-1 bg-muted rounded-lg">
           {(['backing', 'metronome'] as PlayerMode[]).map(m => (
             <button
               key={m}
               onClick={() => handleSetMode(m)}
               className={cn(
-                'relative px-4 py-1.5 text-sm font-medium rounded-md transition-colors z-10',
+                'relative min-h-11 whitespace-nowrap px-4 py-1.5 text-sm font-medium rounded-md transition-colors z-10',
                 mode === m
                   ? 'text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -423,7 +423,7 @@ export function BackingTrackPlayer({
             onClick={handleTogglePlay}
             disabled={!canPlay}
             className={cn(
-              'px-5 py-2 rounded-lg text-sm font-semibold transition-all',
+              'min-h-11 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold transition-all',
               isPlaying
                 ? 'bg-accent-orange text-background hover:opacity-90'
                 : canPlay
@@ -437,7 +437,7 @@ export function BackingTrackPlayer({
             onClick={() => setExpanded(prev => !prev)}
             aria-label={expanded ? '세부 설정 접기' : '세부 설정 펼치기'}
             aria-expanded={expanded}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-accent-teal/10 hover:border-accent-teal transition-colors text-muted-foreground"
+            className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-accent-teal/10 hover:border-accent-teal transition-colors text-muted-foreground"
           >
             <motion.span
               animate={{ rotate: expanded ? 180 : 0 }}

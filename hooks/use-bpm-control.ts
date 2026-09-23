@@ -1,8 +1,10 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { parseSavedBpm } from '@/lib/practice-settings'
 
 interface UseBpmControlOptions {
+  storageKey?: string
   initialBpm?: number
   min?: number
   max?: number
@@ -11,6 +13,7 @@ interface UseBpmControlOptions {
 }
 
 export function useBpmControl({
+  storageKey,
   initialBpm = 100,
   min = 40,
   max = 240,
@@ -20,6 +23,34 @@ export function useBpmControl({
   const [bpm, setBpmState] = useState(initialBpm)
   const [bpmInput, setBpmInput] = useState(String(initialBpm))
   const tapTimestampsRef = useRef<number[]>([])
+  const [restored, setRestored] = useState(false)
+
+  useEffect(() => {
+    try {
+      if (storageKey) {
+        const saved = parseSavedBpm(
+          localStorage.getItem(storageKey),
+          initialBpm,
+          min,
+          max
+        )
+        setBpmState(saved)
+        setBpmInput(String(saved))
+      }
+    } catch {
+      /* Storage may be unavailable. */
+    }
+    setRestored(true)
+  }, [storageKey, initialBpm, min, max])
+
+  useEffect(() => {
+    if (!restored || !storageKey) return
+    try {
+      localStorage.setItem(storageKey, String(bpm))
+    } catch {
+      /* Keep controls usable. */
+    }
+  }, [bpm, restored, storageKey])
 
   const clamp = (value: number) => Math.min(max, Math.max(min, value))
 

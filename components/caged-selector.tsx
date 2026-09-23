@@ -12,7 +12,7 @@ interface CAGEDSelectorProps {
 }
 
 const SHAPES: { value: CAGEDSelection; label: string }[] = [
-  { value: 'all', label: 'All' },
+  { value: 'all', label: '전체 포지션' },
   ...CAGED_SHAPES.map(s => ({ value: s as CAGEDSelection, label: s })),
 ]
 
@@ -39,8 +39,9 @@ export function CAGEDSelector({
             variant={isSelected ? 'default' : 'outline'}
             size="sm"
             onClick={() => handleClick(value as CAGEDSelection)}
+            aria-pressed={isSelected}
             className={cn(
-              'min-w-[48px] transition-all',
+              'min-w-[48px] min-h-11 transition-all',
               isSelected
                 ? 'bg-accent-teal text-background hover:bg-accent-teal/90'
                 : `hover:opacity-90`
