@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { MotionConfig } from 'framer-motion'
+import { Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -13,7 +14,14 @@ import {
 } from '@/components/ui/select'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Fretboard } from '@/components/fretboard'
-import { LICKS, lickPitch } from '@/lib/licks'
+import {
+  LICKS,
+  LICK_GROUPS,
+  lickGroup,
+  lickTab,
+  lickPosition,
+  filterLicks,
+} from '@/lib/licks'
 import { useLickPlayer } from '@/hooks/use-lick-player'
 import { useBpmControl } from '@/hooks/use-bpm-control'
 import { cn } from '@/lib/utils'
@@ -22,6 +30,9 @@ const COUNTS = ['1', '&', '2', '&', '3', '&', '4', '&']
 
 export default function LickPracticePage() {
   const [lickId, setLickId] = useState(LICKS[0].id)
+  const [group, setGroup] = useState<string>('전체')
+  const [recommendedOnly, setRecommendedOnly] = useState(true)
+  const filtered = filterLicks(group, recommendedOnly)
   const lick = LICKS.find(l => l.id === lickId) ?? LICKS[0]
   const { bpm, setBpm } = useBpmControl({
     initialBpm: 70,
@@ -30,8 +41,28 @@ export default function LickPracticePage() {
     storageKey: 'guitarkit:lick-bpm',
   })
   const player = useLickPlayer(lick, bpm)
+  function changeFilter(nextGroup: string, nextRecommended: boolean) {
+    const choices = filterLicks(nextGroup, nextRecommended)
+    player.stop()
+    setGroup(nextGroup)
+    setRecommendedOnly(nextRecommended)
+    if (!choices.some(l => l.id === lickId)) setLickId(choices[0].id)
+  }
   const phase = player.frame?.phase
   const responding = phase === 'respond'
+  const currentNote = player.frame?.note
+  const position =
+    currentNote && player.frame
+      ? lickPosition(
+          currentNote,
+          (player.frame.tick + player.frame.fraction - currentNote.tick) /
+            (currentNote.duration * 0.95)
+        )
+      : null
+  const endFret = Math.max(
+    8,
+    ...lick.notes.flatMap(n => [n.fret, n.targetFret ?? n.fret])
+  )
   const phaseLabel = !player.playing
     ? '준비됐나요?'
     : phase === 'listen'
@@ -43,18 +74,28 @@ export default function LickPracticePage() {
   return (
     <MotionConfig reducedMotion="user">
       <main className="min-h-screen bg-background text-foreground p-4 md:p-8">
-        <div className="max-w-5xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-8">
           <header className="flex items-center justify-between gap-4">
-            <div>
-              <Link
-                href="/"
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                GuitarKit 홈
-              </Link>
-              <h1 className="text-2xl md:text-3xl font-bold mt-2">릭 연습</h1>
+            <Link
+              href="/"
+              aria-label="릭 연습 · 홈으로"
+              className="flex items-center gap-3 transition-opacity hover:opacity-80"
+            >
+              <div className="p-2 rounded-lg bg-gradient-to-br from-accent-blue via-accent-teal to-accent-green">
+                <Music className="w-6 h-6 text-background" aria-hidden="true" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-balance">
+                  릭 연습
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  한 마디 듣고, 다음 한 마디에 따라 치기
+                </p>
+              </div>
+            </Link>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
             </div>
-            <ThemeToggle />
           </header>
           <p className="text-sm text-muted-foreground break-keep">
             릭은 짧은 연주 구절입니다. 한 마디를 듣고, 다음 한 마디에 그대로
@@ -65,6 +106,43 @@ export default function LickPracticePage() {
             aria-label="릭 연습 설정"
             className="bg-card border border-border rounded-xl p-4 md:p-6 space-y-4"
           >
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant={recommendedOnly ? 'default' : 'outline'}
+                aria-pressed={recommendedOnly}
+                className={cn(
+                  'min-h-11',
+                  recommendedOnly &&
+                    'bg-accent-teal text-background hover:bg-accent-teal/90'
+                )}
+                onClick={() => changeFilter(group, !recommendedOnly)}
+              >
+                추천만
+              </Button>
+              <p className="text-sm text-muted-foreground" role="status">
+                {recommendedOnly
+                  ? '처음에는 추천 8개부터. 끄면 전체 릭을 볼 수 있어요.'
+                  : `전체 ${LICKS.length}개 중 골라보세요.`}{' '}
+                현재 {filtered.length}개
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2" aria-label="주법 필터">
+              {LICK_GROUPS.map(value => (
+                <Button
+                  key={value}
+                  variant={group === value ? 'default' : 'outline'}
+                  className={cn(
+                    'min-h-11',
+                    group === value &&
+                      'bg-accent-teal text-background hover:bg-accent-teal/90'
+                  )}
+                  aria-pressed={group === value}
+                  onClick={() => changeFilter(value, recommendedOnly)}
+                >
+                  {value} {filterLicks(value, recommendedOnly).length}
+                </Button>
+              ))}
+            </div>
             <div className="grid sm:grid-cols-[1fr_auto] gap-4">
               <div className="space-y-2">
                 <label htmlFor="lick-choice" className="text-sm font-medium">
@@ -81,9 +159,11 @@ export default function LickPracticePage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {LICKS.map(l => (
+                    {filtered.map(l => (
                       <SelectItem key={l.id} value={l.id}>
                         {l.title}
+                        {l.recommendation ? ' · 추천' : ''}
+                        {l.style ? ` · ${l.style}` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -121,8 +201,18 @@ export default function LickPracticePage() {
               </div>
             </div>
             <p className="text-sm">
-              A 마이너 펜타토닉 · 4/4박자 · 5–8프렛 · 벤딩 없는 입문 릭
+              A 마이너 펜타토닉 · 4/4박자 · 5–{endFret}프렛 · {lickGroup(lick)}
+              {' · '}
+              {lick.style ?? '기초 연습'}
             </p>
+            {lick.recommendation && (
+              <p className="text-sm">
+                <span className="inline-block text-xs rounded-full px-2.5 py-0.5 bg-accent-teal/15 text-accent-teal border border-accent-teal/30 mr-2">
+                  추천
+                </span>
+                {lick.recommendation}
+              </p>
+            )}
             <p className="text-sm text-muted-foreground">
               {lick.description}. 릭이나 속도를 바꾸면 정지하고, 다시 시작할 때
               4박을 셉니다.
@@ -215,7 +305,12 @@ export default function LickPracticePage() {
                 aria-label="릭 TAB, 좁은 화면에서는 좌우로 스크롤"
                 className="overflow-x-auto rounded-lg border border-border focus-visible:outline-2 focus-visible:outline-ring"
               >
-                <table className="w-full min-w-80 table-fixed text-sm text-center font-mono">
+                <table
+                  className={cn(
+                    'w-full table-fixed text-sm text-center font-mono',
+                    lickGroup(lick) === '기본' ? 'min-w-80' : 'min-w-[40rem]'
+                  )}
+                >
                   <caption className="sr-only">
                     {lick.title}. 각 칸은 8분음표, 숫자는 프렛 번호입니다.
                   </caption>
@@ -273,7 +368,7 @@ export default function LickPracticePage() {
                             >
                               <span
                                 className={cn(
-                                  'inline-flex w-7 h-7 items-center justify-center rounded-md',
+                                  'inline-flex min-w-7 px-1 h-7 items-center justify-center rounded-md',
                                   note
                                     ? active
                                       ? responding
@@ -283,7 +378,7 @@ export default function LickPracticePage() {
                                     : 'text-muted-foreground'
                                 )}
                               >
-                                {note?.fret ?? (held ? '─' : '·')}
+                                {note ? lickTab(note) : held ? '─' : '·'}
                               </span>
                             </td>
                           )
@@ -299,6 +394,12 @@ export default function LickPracticePage() {
                 줄입니다.
               </p>
               <p className="text-sm">{lick.tip}</p>
+              <p className="text-sm text-muted-foreground">
+                7b9 = 7프렛에서 한 음 벤딩 · r7 = 다시 원래 높이로 내리기 · 5/7
+                = 5→7프렛 슬라이드 · 7\5 = 7→5프렛 슬라이드. 벤딩의 목표 숫자는
+                음높이이며 손가락을 옮길 프렛이 아닙니다. 소리는 샘플의 음높이를
+                바꾼 근사 표현입니다.
+              </p>
             </div>
           </section>
 
@@ -307,9 +408,9 @@ export default function LickPracticePage() {
             className="bg-card border border-border rounded-xl p-4 md:p-6 space-y-4"
           >
             <h2 className="text-lg font-semibold">지판에서 위치 확인</h2>
-            <p className="text-sm text-muted-foreground min-h-6">
-              {player.frame?.note
-                ? `${player.frame.note.stringIndex + 1}번 줄 ${player.frame.note.fret}프렛 · ${lickPitch(player.frame.note)}${responding ? ' · 직접 연주할 위치' : ''}`
+            <p className="text-sm text-muted-foreground min-h-20 sm:min-h-10 lg:min-h-5">
+              {currentNote && position
+                ? `${position.stringIndex + 1}번 줄 ${position.fret}프렛 · ${lickTab(currentNote)}${currentNote.technique === 'bend' || currentNote.technique === 'release' ? ' · ↑ 줄을 밀어 음높이 올리기 (프렛 유지)' : currentNote.technique === 'slide' ? ' · → 누른 채 이동' : ''}${responding ? ' · 직접 연주할 위치' : ''}`
                 : player.playing
                   ? phase === 'count-in'
                     ? '박자를 세며 준비하세요.'
@@ -322,13 +423,15 @@ export default function LickPracticePage() {
               notationType="alphabetical"
               displayMode="scale"
               startFret={5}
-              frets={8}
-              playbackPosition={player.frame?.note}
+              frets={endFret}
+              playbackPosition={position}
               interactive={!player.playing}
             />
           </section>
           <p className="text-sm text-muted-foreground">
-            직접 만든 연습용 릭입니다. 기타는 표준 튜닝(E A D G B E)을
+            록에서 쓰는 반복·하행·벤딩·여백을 익히도록 직접 만든 연습용
+            릭입니다. 스타일 태그는 분위기 안내이며, 특정 밴드나 곡의 실제
+            연주를 채보한 것이 아닙니다. 기타는 표준 튜닝(E A D G B E)을
             사용하세요. 다른 탭으로 이동하면 연습이 정지됩니다.
           </p>
         </div>

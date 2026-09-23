@@ -24,26 +24,29 @@ type Feature = {
 
 const FEATURES: Feature[] = [
   {
-    id: 'lick-practice',
-    icon: Music,
-    title: '릭 연습',
-    description: '한 마디 듣고, 다음 한 마디에 따라 쳐보세요. TAB과 지판 가이드로 짧은 연주 구절을 익힙니다.',
-    href: '/lick-practice',
-    accent: 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
-  },
-  {
     id: 'scale',
     icon: AudioLines,
     title: '스케일 연습',
-    description: '6현 지판 위에 스케일을 시각화하고, CAGED 시스템과 실시간 사운드로 연습합니다.',
+    description:
+      '6현 지판 위에 스케일을 시각화하고, CAGED 시스템과 실시간 사운드로 연습합니다.',
     href: '/guitar-scale',
+    accent: 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
+  },
+  {
+    id: 'lick-practice',
+    icon: Music,
+    title: '릭 연습',
+    description:
+      '한 마디 듣고, 다음 한 마디에 따라 쳐보세요. TAB과 지판 가이드로 짧은 연주 구절을 익힙니다.',
+    href: '/lick-practice',
     accent: 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
   },
   {
     id: 'chords',
     icon: BookOpen,
     title: '코드사전',
-    description: '코드 구성음과 운지법을 다이어그램으로 확인하고 소리로 들어봅니다.',
+    description:
+      '코드 구성음과 운지법을 다이어그램으로 확인하고 소리로 들어봅니다.',
     href: '/chords',
     accent: 'bg-accent-blue/15 text-accent-blue border-accent-blue/30',
   },
@@ -67,7 +70,8 @@ const FEATURES: Feature[] = [
     id: 'jam-track',
     icon: Disc3,
     title: '잼 트랙',
-    description: '루트와 스케일을 고르고 스타일별 백킹 트랙에 맞춰 즉흥 연주합니다.',
+    description:
+      '루트와 스케일을 고르고 스타일별 백킹 트랙에 맞춰 즉흥 연주합니다.',
     href: '/jam-track',
     accent: 'bg-accent-blue/15 text-accent-blue border-accent-blue/30',
   },
@@ -95,7 +99,7 @@ export default function Home() {
               GuitarKit
             </h1>
             <p className="text-base text-muted-foreground max-w-md text-balance">
-              기타 연습에 필요한 건 여기 다 있어요
+              기타 연습에 필요한 건 여기 다 있을걸요
             </p>
           </motion.div>
 

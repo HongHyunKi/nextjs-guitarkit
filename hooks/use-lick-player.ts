@@ -3,15 +3,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Tone from 'tone'
 import { GUITAR_SAMPLE_URLS } from '@/lib/guitar-sampler'
-import { getLickFrame, lickPitch, type Lick, type LickFrame } from '@/lib/licks'
+import {
+  getLickFrame,
+  lickPitch,
+  lickPitchCurve,
+  type Lick,
+  type LickFrame,
+} from '@/lib/licks'
 
 export function useLickPlayer(lick: Lick, bpm: number) {
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
   const [playing, setPlaying] = useState(false)
-  const [frame, setFrame] = useState<LickFrame | null>(null)
-  const samplerRef = useRef<Tone.Sampler | null>(null)
+  const [frame, setFrame] = useState<(LickFrame & { fraction: number }) | null>(
+    null
+  )
+  const samplerRef = useRef<Tone.ToneAudioBuffers | null>(null)
+  const voices = useRef(new Set<AudioBufferSourceNode>())
   const leadGainRef = useRef<Tone.Gain | null>(null)
   const outputRef = useRef<Tone.Gain | null>(null)
   const bassRef = useRef<Tone.Synth | null>(null)
@@ -31,7 +40,11 @@ export function useLickPlayer(lick: Lick, bpm: number) {
     outputRef.current?.gain.setValueAtTime(0, now)
     leadGainRef.current?.gain.cancelScheduledValues(now)
     leadGainRef.current?.gain.setValueAtTime(0, now)
-    samplerRef.current?.releaseAll(now)
+    voices.current.forEach(source => {
+      source.stop()
+      source.disconnect()
+    })
+    voices.current.clear()
     bassRef.current?.triggerRelease(now)
     clickRef.current?.triggerRelease(now)
     Tone.getTransport().stop()
@@ -46,10 +59,9 @@ export function useLickPlayer(lick: Lick, bpm: number) {
     setError('')
     const output = new Tone.Gain(0).toDestination()
     const leadGain = new Tone.Gain(0).connect(output)
-    const sampler = new Tone.Sampler({
+    const sampler = new Tone.ToneAudioBuffers({
       urls: GUITAR_SAMPLE_URLS.electric,
       baseUrl: '/samples/guitar-electric/',
-      release: 0.03,
       onload: () => {
         if (active) {
           setLoaded(true)
@@ -62,7 +74,7 @@ export function useLickPlayer(lick: Lick, bpm: number) {
             '기타 소리를 불러오지 못했습니다. 연결을 확인하고 다시 시도해주세요.'
           )
       },
-    }).connect(leadGain)
+    })
     const bass = new Tone.Synth({
       oscillator: { type: 'sine' },
       envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.03 },
@@ -133,13 +145,46 @@ export function useLickPlayer(lick: Lick, bpm: number) {
           next.phase === 'listen' ? 0.8 : 0,
           time
         )
-        if (next.lead)
-          samplerRef.current?.triggerAttackRelease(
-            lickPitch(next.lead),
-            next.lead.duration * eighthSeconds * 0.85,
-            time,
-            0.85
+        if (next.lead && samplerRef.current && leadGainRef.current) {
+          const note = next.lead
+          const midi = Tone.Frequency(lickPitch(note)).toMidi()
+          const sample = Object.keys(GUITAR_SAMPLE_URLS.electric).reduce(
+            (best, key) =>
+              Math.abs(Tone.Frequency(key).toMidi() - midi) <
+              Math.abs(Tone.Frequency(best).toMidi() - midi)
+                ? key
+                : best
           )
+          const source = Tone.getContext().createBufferSource()
+          const envelope = Tone.getContext().createGain()
+          source.buffer = samplerRef.current.get(sample).get() ?? null
+          const duration = note.duration * eighthSeconds * 0.95
+          const base = midi - Tone.Frequency(sample).toMidi()
+          // ponytail: resampling approximates articulation; recorded technique samples add string noise and timbral realism.
+          for (const [fraction, semitones] of lickPitchCurve(note)) {
+            const rate = Math.pow(2, (base + semitones) / 12)
+            if (fraction === 0) source.playbackRate.setValueAtTime(rate, time)
+            else
+              source.playbackRate.exponentialRampToValueAtTime(
+                rate,
+                time + fraction * duration
+              )
+          }
+          envelope.gain.setValueAtTime(0, time)
+          envelope.gain.linearRampToValueAtTime(0.85, time + 0.005)
+          envelope.gain.setValueAtTime(0.85, time + duration - 0.025)
+          envelope.gain.linearRampToValueAtTime(0, time + duration)
+          source.connect(envelope)
+          Tone.connect(envelope, leadGainRef.current)
+          voices.current.add(source)
+          source.onended = () => {
+            voices.current.delete(source)
+            source.disconnect()
+            envelope.disconnect()
+          }
+          source.start(time)
+          source.stop(time + duration)
+        }
         if (next.tick % 2 === 0) {
           clickRef.current?.triggerAttackRelease(
             next.beat === 1 ? 'C6' : 'G5',
@@ -153,14 +198,20 @@ export function useLickPlayer(lick: Lick, bpm: number) {
               time
             )
         }
-        const id = setTimeout(
-          () => {
-            timers.current.delete(id)
-            if (token === generation.current) setFrame(next)
-          },
-          Math.max(0, (time - Tone.immediate()) * 1000)
-        )
-        timers.current.add(id)
+        for (let subdivision = 0; subdivision < 4; subdivision++) {
+          const fraction = subdivision / 4
+          const id = setTimeout(
+            () => {
+              timers.current.delete(id)
+              if (token === generation.current) setFrame({ ...next, fraction })
+            },
+            Math.max(
+              0,
+              (time + fraction * eighthSeconds - Tone.immediate()) * 1000
+            )
+          )
+          timers.current.add(id)
+        }
       }, '8n').start(0)
       const startTime = Tone.now() + 0.1
       outputRef.current?.gain.setValueAtTime(1, startTime)

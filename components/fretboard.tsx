@@ -164,7 +164,7 @@ export function Fretboard({
         tabIndex={0}
         role="region"
         aria-label="기타 지판, 좌우로 스크롤"
-        className="w-full overflow-x-auto pb-4 custom-scrollbar focus-visible:outline-2 focus-visible:outline-ring"
+        className="w-full overflow-x-auto pt-1 pb-4 custom-scrollbar focus-visible:outline-2 focus-visible:outline-ring"
         onPointerDown={e => {
           pointerStart.current = { x: e.clientX, y: e.clientY }
           dragged.current = false
@@ -275,7 +275,7 @@ export function Fretboard({
                       )}
 
                       {/* 활성 노트 (0프렛 포함, 동일 UI) */}
-                      {(quiz || chordNote || visible) && (
+                      {(quiz || chordNote || visible || playingHere) && (
                         <motion.button
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
