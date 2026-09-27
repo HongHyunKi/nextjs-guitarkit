@@ -22,132 +22,14 @@ interface BackingTrackPlayerProps {
   onChordChange?: (chord: Chord | null) => void
 }
 
-type DrumStep = { kick: boolean; snare: boolean; hihat: boolean }
-type Subdivision = '4beat' | '8beat' | '16beat'
-
-const SUBDIVISION_NOTE: Record<Subdivision, string> = {
-  '4beat': '4n',
-  '8beat': '8n',
-  '16beat': '16n',
-}
-
-const SUBDIVISION_LABELS: Record<Subdivision, string> = {
-  '4beat': '4비트',
-  '8beat': '8비트',
-  '16beat': '16비트',
-}
-
-// 4비트: 4스텝(4분음표), 8비트: 8스텝(8분음표), 16비트: 16스텝(16분음표)
-const DRUM_PATTERNS: Record<BackingStyle, Record<Subdivision, DrumStep[]>> = {
-  rock: {
-    '4beat': [
-      { kick: true, snare: false, hihat: true }, // beat 1
-      { kick: false, snare: true, hihat: true }, // beat 2
-      { kick: true, snare: false, hihat: true }, // beat 3
-      { kick: false, snare: true, hihat: true }, // beat 4
-    ],
-    '8beat': [
-      { kick: true, snare: false, hihat: true }, // 1 down
-      { kick: false, snare: false, hihat: true }, // 1 up
-      { kick: false, snare: true, hihat: true }, // 2 down
-      { kick: false, snare: false, hihat: true }, // 2 up
-      { kick: true, snare: false, hihat: true }, // 3 down
-      { kick: false, snare: false, hihat: true }, // 3 up
-      { kick: false, snare: true, hihat: true }, // 4 down
-      { kick: false, snare: false, hihat: true }, // 4 up
-    ],
-    '16beat': [
-      { kick: true, snare: false, hihat: true }, // beat 1
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true }, // beat 2
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: true, snare: false, hihat: true }, // beat 3
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true }, // beat 4
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-    ],
-  },
-  blues: {
-    '4beat': [
-      { kick: true, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: false },
-      { kick: true, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: false },
-    ],
-    '8beat': [
-      { kick: true, snare: false, hihat: true }, // 1 down (swing 적용)
-      { kick: false, snare: false, hihat: true }, // 1 up
-      { kick: false, snare: true, hihat: false }, // 2 down
-      { kick: false, snare: false, hihat: true }, // 2 up (shuffle)
-      { kick: true, snare: false, hihat: true }, // 3 down
-      { kick: false, snare: false, hihat: true }, // 3 up
-      { kick: false, snare: true, hihat: false }, // 4 down
-      { kick: false, snare: false, hihat: true }, // 4 up (shuffle)
-    ],
-    '16beat': [
-      { kick: true, snare: false, hihat: true }, // beat 1
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // shuffle accent
-      { kick: false, snare: true, hihat: true }, // beat 2
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // shuffle accent
-      { kick: false, snare: false, hihat: true },
-      { kick: true, snare: false, hihat: true }, // beat 3
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // shuffle accent
-      { kick: false, snare: true, hihat: true }, // beat 4
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // shuffle accent
-      { kick: false, snare: false, hihat: true },
-    ],
-  },
-  jazz: {
-    '4beat': [
-      { kick: true, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true },
-      { kick: false, snare: false, hihat: true },
-    ],
-    '8beat': [
-      { kick: true, snare: false, hihat: true }, // 1
-      { kick: false, snare: false, hihat: true }, // 1+ (swing)
-      { kick: false, snare: true, hihat: false }, // 2
-      { kick: false, snare: false, hihat: true }, // 2+ (swing)
-      { kick: false, snare: false, hihat: true }, // 3
-      { kick: false, snare: false, hihat: true }, // 3+ (swing)
-      { kick: false, snare: true, hihat: false }, // 4
-      { kick: false, snare: false, hihat: true }, // 4+ (swing)
-    ],
-    '16beat': [
-      { kick: true, snare: false, hihat: true }, // beat 1
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // triplet accent
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true }, // beat 2
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // beat 3
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // triplet accent
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true }, // beat 4
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-    ],
-  },
-}
+import {
+  DRUM_PATTERNS,
+  SUBDIVISION_NOTE,
+  SUBDIVISION_LABELS,
+  type DrumStep,
+  type Subdivision,
+} from '@/lib/drum-patterns'
+import { createDrumKit } from '@/lib/drum-kit'
 
 const STYLE_LABELS: Record<BackingStyle, string> = {
   rock: 'Rock',
@@ -224,27 +106,10 @@ export function BackingTrackPlayer({
       onload: () => setSamplerLoaded(true),
     }).toDestination()
 
-    kickRef.current = new Tone.MembraneSynth({
-      pitchDecay: 0.05,
-      octaves: 4,
-      envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.1 },
-    }).toDestination()
-    kickRef.current.volume.value = -6
-
-    snareRef.current = new Tone.NoiseSynth({
-      noise: { type: 'white' },
-      envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.05 },
-    }).toDestination()
-    snareRef.current.volume.value = -10
-
-    hihatRef.current = new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 },
-      harmonicity: 5.1,
-      modulationIndex: 32,
-      resonance: 4000,
-      octaves: 1.5,
-    }).toDestination()
-    hihatRef.current.volume.value = -18
+    const drums = createDrumKit(Tone.getDestination())
+    kickRef.current = drums.kick
+    snareRef.current = drums.snare
+    hihatRef.current = drums.hihat
 
     return () => {
       samplerRef.current?.dispose()
@@ -345,7 +210,7 @@ export function BackingTrackPlayer({
 
         if (step.kick) kickRef.current?.triggerAttackRelease('C1', '8n', time)
         if (step.snare) snareRef.current?.triggerAttackRelease('8n', time)
-        if (step.hihat) hihatRef.current?.triggerAttackRelease('32n', time)
+        if (step.hihat) hihatRef.current?.triggerAttackRelease(200, '32n', time)
       },
       DRUM_PATTERNS[style][subdivision],
       SUBDIVISION_NOTE[subdivision]

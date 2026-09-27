@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { MotionConfig } from 'framer-motion'
 import { Music } from 'lucide-react'
@@ -21,10 +21,14 @@ import {
   lickTab,
   lickPosition,
   filterLicks,
+  LICK_KEYS,
+  transposeLick,
+  type LickKey,
 } from '@/lib/licks'
 import { useLickPlayer } from '@/hooks/use-lick-player'
 import { useBpmControl } from '@/hooks/use-bpm-control'
 import { cn } from '@/lib/utils'
+import { LICK_DRUM_LABELS, type LickDrums } from '@/lib/drum-patterns'
 
 const COUNTS = ['1', '&', '2', '&', '3', '&', '4', '&']
 
@@ -32,15 +36,30 @@ export default function LickPracticePage() {
   const [lickId, setLickId] = useState(LICKS[0].id)
   const [group, setGroup] = useState<string>('전체')
   const [recommendedOnly, setRecommendedOnly] = useState(true)
+  const [drumPattern, setDrumPattern] = useState<LickDrums>('8beat')
+  const [drumVolume, setDrumVolume] = useState(50)
+  const [clickEnabled, setClickEnabled] = useState(false)
+  const [root, setRoot] = useState<LickKey>('A')
   const filtered = filterLicks(group, recommendedOnly)
-  const lick = LICKS.find(l => l.id === lickId) ?? LICKS[0]
+  const originalLick = LICKS.find(l => l.id === lickId) ?? LICKS[0]
+  const lick = useMemo(
+    () => transposeLick(originalLick, root),
+    [originalLick, root]
+  )
   const { bpm, setBpm } = useBpmControl({
     initialBpm: 70,
     min: 40,
     max: 140,
     storageKey: 'guitarkit:lick-bpm',
   })
-  const player = useLickPlayer(lick, bpm)
+  const player = useLickPlayer(
+    lick,
+    bpm,
+    drumPattern,
+    drumVolume,
+    clickEnabled,
+    root
+  )
   function changeFilter(nextGroup: string, nextRecommended: boolean) {
     const choices = filterLicks(nextGroup, nextRecommended)
     player.stop()
@@ -60,7 +79,7 @@ export default function LickPracticePage() {
         )
       : null
   const endFret = Math.max(
-    8,
+    8 + LICK_KEYS[root],
     ...lick.notes.flatMap(n => [n.fret, n.targetFret ?? n.fret])
   )
   const phaseLabel = !player.playing
@@ -69,7 +88,7 @@ export default function LickPracticePage() {
       ? '먼저 들어보세요'
       : responding
         ? '이제 직접 쳐보세요'
-        : '4박 준비'
+        : '4박 준비 · 다음은 듣기'
 
   return (
     <MotionConfig reducedMotion="user">
@@ -200,8 +219,100 @@ export default function LickPracticePage() {
                 </Select>
               </div>
             </div>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="lick-key" className="text-sm font-medium">
+                  연습 키 · 마이너 펜타토닉
+                </label>
+                <Select
+                  value={root}
+                  onValueChange={value => {
+                    player.stop()
+                    setRoot(value as LickKey)
+                  }}
+                >
+                  <SelectTrigger id="lick-key" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(LICK_KEYS).map(key => (
+                      <SelectItem key={key} value={key}>
+                        {key} 마이너
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="lick-drums" className="text-sm font-medium">
+                  드럼 반주
+                </label>
+                <Select
+                  value={drumPattern}
+                  onValueChange={value => {
+                    player.stop()
+                    setDrumPattern(value as LickDrums)
+                  }}
+                >
+                  <SelectTrigger id="lick-drums" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(LICK_DRUM_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label
+                  htmlFor="lick-drum-volume"
+                  className="text-sm font-medium"
+                >
+                  드럼 음량
+                </label>
+                <Select
+                  value={String(drumVolume)}
+                  disabled={drumPattern === 'off'}
+                  onValueChange={value => setDrumVolume(Number(value))}
+                >
+                  <SelectTrigger id="lick-drum-volume" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[0, 25, 50, 75, 100].map(value => (
+                      <SelectItem key={value} value={String(value)}>
+                        {value}%{value === 0 ? ' · 음소거' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button
+              variant={clickEnabled ? 'default' : 'outline'}
+              aria-pressed={clickEnabled}
+              className={cn(
+                'min-h-11',
+                clickEnabled &&
+                  'bg-accent-teal text-background hover:bg-accent-teal/90'
+              )}
+              onClick={() => {
+                player.stop()
+                setClickEnabled(value => !value)
+              }}
+            >
+              클릭 {clickEnabled ? '켜짐' : '꺼짐'}
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              준비 4박에는 클릭만 나옵니다. 드럼은 듣기와 내 차례 모두 이어지며,
+              음량은 재생 중에도 바꿀 수 있어요.
+            </p>
             <p className="text-sm">
-              A 마이너 펜타토닉 · 4/4박자 · 5–{endFret}프렛 · {lickGroup(lick)}
+              {root} 마이너 펜타토닉 · 4/4박자 · {5 + LICK_KEYS[root]}–{endFret}
+              프렛 · {lickGroup(lick)}
               {' · '}
               {lick.style ?? '기초 연습'}
             </p>
@@ -214,8 +325,9 @@ export default function LickPracticePage() {
               </p>
             )}
             <p className="text-sm text-muted-foreground">
-              {lick.description}. 릭이나 속도를 바꾸면 정지하고, 다시 시작할 때
-              4박을 셉니다.
+              {lick.description.replace('A 마이너', `${root} 마이너`)}.
+              릭·키·속도·드럼·클릭을 바꾸면 정지하고, 다시 시작할 때 4박을
+              셉니다.
             </p>
           </section>
 
@@ -291,8 +403,9 @@ export default function LickPracticePage() {
               ))}
             </div>
             <p className="text-sm text-muted-foreground">
-              내 차례에는 기타 멜로디 없이 A·E 저음 반주와 클릭만 나옵니다.
-              마이크를 사용하거나 연주를 채점하지 않습니다.
+              내 차례에는 기타 멜로디 없이 {root} 키의 근음·5도 저음 반주와
+              선택한 드럼·클릭이 나옵니다. 마이크를 사용하거나 연주를 채점하지
+              않습니다.
             </p>
 
             <div className="space-y-3">
@@ -393,7 +506,11 @@ export default function LickPracticePage() {
                 칸 = 쉼. 1 & 2 & 3 & 4 &로 세세요. 위쪽이 가장 가는 1번
                 줄입니다.
               </p>
-              <p className="text-sm">{lick.tip}</p>
+              <p className="text-sm">
+                {root === 'A'
+                  ? lick.tip
+                  : `${root} 키로 옮긴 TAB의 프렛 번호를 따라 연주하세요. 원래 A 키와 음정·리듬·주법은 같지만 손가락 위치는 달라집니다.`}
+              </p>
               <p className="text-sm text-muted-foreground">
                 7b9 = 7프렛에서 한 음 벤딩 · r7 = 다시 원래 높이로 내리기 · 5/7
                 = 5→7프렛 슬라이드 · 7\5 = 7→5프렛 슬라이드. 벤딩의 목표 숫자는
@@ -418,11 +535,11 @@ export default function LickPracticePage() {
                   : '정지 상태에서는 지판을 눌러 음을 하나씩 들을 수 있습니다.'}
             </p>
             <Fretboard
-              rootNote="A"
+              rootNote={root}
               scaleType="minor-pentatonic"
               notationType="alphabetical"
               displayMode="scale"
-              startFret={5}
+              startFret={5 + LICK_KEYS[root]}
               frets={endFret}
               playbackPosition={position}
               interactive={!player.playing}

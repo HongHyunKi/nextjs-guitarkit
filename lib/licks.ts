@@ -1,5 +1,23 @@
 import { getPitchFromFret } from './music-utils'
 
+// E uses the 12th-position box: a slide cannot start from an open string.
+export const LICK_KEYS = { A: 0, C: 3, D: 5, E: 7, G: -2 } as const
+export type LickKey = keyof typeof LICK_KEYS
+export function transposeLick(lick: Lick, key: LickKey): Lick {
+  const shift = LICK_KEYS[key]
+  if (shift === 0) return lick
+  return {
+    ...lick,
+    notes: lick.notes.map(note => ({
+      ...note,
+      fret: note.fret + shift,
+      ...(note.targetFret === undefined
+        ? {}
+        : { targetFret: note.targetFret + shift }),
+    })),
+  }
+}
+
 // Original one-bar exercises, not transcriptions of recorded songs.
 // 4/4, straight eighths: eight ticks per bar; stringIndex 0 is the high E.
 export type LickNote = {

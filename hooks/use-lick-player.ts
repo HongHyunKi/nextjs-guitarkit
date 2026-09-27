@@ -3,15 +3,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Tone from 'tone'
 import { GUITAR_SAMPLE_URLS } from '@/lib/guitar-sampler'
+import { createDrumKit } from '@/lib/drum-kit'
+import { getLickDrumSteps, type LickDrums } from '@/lib/drum-patterns'
 import {
   getLickFrame,
   lickPitch,
   lickPitchCurve,
   type Lick,
   type LickFrame,
+  type LickKey,
 } from '@/lib/licks'
 
-export function useLickPlayer(lick: Lick, bpm: number) {
+export function useLickPlayer(
+  lick: Lick,
+  bpm: number,
+  drumPattern: LickDrums,
+  drumVolume: number,
+  clickEnabled: boolean,
+  root: LickKey
+) {
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -25,6 +35,8 @@ export function useLickPlayer(lick: Lick, bpm: number) {
   const outputRef = useRef<Tone.Gain | null>(null)
   const bassRef = useRef<Tone.Synth | null>(null)
   const clickRef = useRef<Tone.Synth | null>(null)
+  const drumsRef = useRef<ReturnType<typeof createDrumKit> | null>(null)
+  const drumGainRef = useRef<Tone.Gain | null>(null)
   const loopRef = useRef<Tone.Loop | null>(null)
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
   const generation = useRef(0)
@@ -47,6 +59,9 @@ export function useLickPlayer(lick: Lick, bpm: number) {
     voices.current.clear()
     bassRef.current?.triggerRelease(now)
     clickRef.current?.triggerRelease(now)
+    drumsRef.current?.kick.triggerRelease(now)
+    drumsRef.current?.snare.triggerRelease(now)
+    drumsRef.current?.hihat.triggerRelease(now)
     Tone.getTransport().stop()
     Tone.getTransport().cancel()
     setPlaying(false)
@@ -59,6 +74,10 @@ export function useLickPlayer(lick: Lick, bpm: number) {
     setError('')
     const output = new Tone.Gain(0).toDestination()
     const leadGain = new Tone.Gain(0).connect(output)
+    const drumGain = new Tone.Gain(drumVolume / 100).connect(output)
+    const drums = createDrumKit(drumGain)
+    drumsRef.current = drums
+    drumGainRef.current = drumGain
     const sampler = new Tone.ToneAudioBuffers({
       urls: GUITAR_SAMPLE_URLS.electric,
       baseUrl: '/samples/guitar-electric/',
@@ -110,6 +129,12 @@ export function useLickPlayer(lick: Lick, bpm: number) {
       outputRef.current = null
       bassRef.current = null
       clickRef.current = null
+      drumsRef.current = null
+      drumGainRef.current = null
+      drums.kick.dispose()
+      drums.snare.dispose()
+      drums.hihat.dispose()
+      drumGain.dispose()
       sampler.dispose()
       leadGain.dispose()
       bass.dispose()
@@ -118,10 +143,14 @@ export function useLickPlayer(lick: Lick, bpm: number) {
     }
   }, [attempt, stop])
 
+  useEffect(() => {
+    drumGainRef.current?.gain.rampTo(drumVolume / 100, 0.05)
+  }, [drumVolume, attempt])
+
   // Changing a lick or tempo starts a fresh count-in on the next Play.
   useEffect(() => {
     stop()
-  }, [lick, bpm, stop])
+  }, [lick, bpm, drumPattern, clickEnabled, root, stop])
 
   async function start() {
     if (!loaded || playing) return
@@ -129,6 +158,11 @@ export function useLickPlayer(lick: Lick, bpm: number) {
     const token = generation.current
     setError('')
     setPlaying(true)
+    const fail = () => {
+      if (token !== generation.current) return
+      stop()
+      setError('오디오를 재생하지 못했습니다. 재생 버튼을 다시 눌러주세요.')
+    }
     try {
       await Tone.start()
       if (token !== generation.current) return
@@ -138,7 +172,7 @@ export function useLickPlayer(lick: Lick, bpm: number) {
       transport.timeSignature = 4
       transport.position = 0
       let step = 0
-      loopRef.current = new Tone.Loop(time => {
+      const playStep = (time: number) => {
         const next = getLickFrame(lick, step++)
         const eighthSeconds = 30 / bpm
         leadGainRef.current?.gain.setValueAtTime(
@@ -186,17 +220,33 @@ export function useLickPlayer(lick: Lick, bpm: number) {
           source.stop(time + duration)
         }
         if (next.tick % 2 === 0) {
-          clickRef.current?.triggerAttackRelease(
-            next.beat === 1 ? 'C6' : 'G5',
-            0.025,
-            time
-          )
+          if (next.phase === 'count-in' || clickEnabled)
+            clickRef.current?.triggerAttackRelease(
+              next.beat === 1 ? 'C6' : 'G5',
+              0.025,
+              time
+            )
           if (next.phase !== 'count-in')
             bassRef.current?.triggerAttackRelease(
-              next.beat % 2 ? 'A2' : 'E3',
+              Tone.Frequency(`${root}2`)
+                .transpose(next.beat % 2 ? 0 : 7)
+                .toFrequency(),
               eighthSeconds,
               time
             )
+        }
+        for (const { step: drum, offset } of getLickDrumSteps(
+          drumPattern,
+          next.tick,
+          next.phase === 'count-in'
+        )) {
+          const drumTime = time + offset * eighthSeconds
+          if (drum.kick)
+            drumsRef.current?.kick.triggerAttackRelease('C1', '8n', drumTime)
+          if (drum.snare)
+            drumsRef.current?.snare.triggerAttackRelease('8n', drumTime)
+          if (drum.hihat)
+            drumsRef.current?.hihat.triggerAttackRelease(200, '32n', drumTime)
         }
         for (let subdivision = 0; subdivision < 4; subdivision++) {
           const fraction = subdivision / 4
@@ -212,14 +262,21 @@ export function useLickPlayer(lick: Lick, bpm: number) {
           )
           timers.current.add(id)
         }
+      }
+      loopRef.current = new Tone.Loop(time => {
+        try {
+          playStep(time)
+        } catch {
+          fail()
+        }
       }, '8n').start(0)
       const startTime = Tone.now() + 0.1
+      drumGainRef.current?.gain.cancelScheduledValues(startTime)
+      drumGainRef.current?.gain.setValueAtTime(drumVolume / 100, startTime)
       outputRef.current?.gain.setValueAtTime(1, startTime)
       transport.start(startTime)
     } catch {
-      if (token !== generation.current) return
-      stop()
-      setError('오디오를 시작하지 못했습니다. 재생 버튼을 다시 눌러주세요.')
+      fail()
     }
   }
   return {
