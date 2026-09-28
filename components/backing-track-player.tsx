@@ -71,7 +71,7 @@ export function BackingTrackPlayer({
   const [chordVolume, setChordVolume] = useState(60)
   const [drumVolume, setDrumVolume] = useState(80)
 
-  // Derived: 수동 오버라이드 없으면 스타일 프리셋 사용 (useMemo로 레퍼런스 안정화)
+  // 수동 진행이 없으면 스타일 기본값을 사용한다.
   const progressionIndices = useMemo(
     () => progressionOverride ?? getStyleProgression(style, scaleType),
     [progressionOverride, style, scaleType]
@@ -89,8 +89,9 @@ export function BackingTrackPlayer({
     chordChangeRef.current = onChordChange
   }, [onChordChange])
 
-  // Initialize audio instruments once on mount
+  // 진입 시 악기를 한 번 생성한다.
   useEffect(() => {
+    let active = true
     samplerRef.current = new Tone.Sampler({
       urls: {
         C4: 'C4.mp3',
@@ -103,7 +104,9 @@ export function BackingTrackPlayer({
         A5: 'A5.mp3',
       },
       baseUrl: 'https://tonejs.github.io/audio/salamander/',
-      onload: () => setSamplerLoaded(true),
+      onload: () => {
+        if (active) setSamplerLoaded(true)
+      },
     }).toDestination()
 
     const drums = createDrumKit(Tone.getDestination())
@@ -112,6 +115,7 @@ export function BackingTrackPlayer({
     hihatRef.current = drums.hihat
 
     return () => {
+      active = false
       samplerRef.current?.dispose()
       kickRef.current?.dispose()
       snareRef.current?.dispose()
@@ -123,27 +127,25 @@ export function BackingTrackPlayer({
     }
   }, [])
 
-  // Rebuild sequences whenever playback params change
+  // 재생 설정이 바뀌면 시퀀스를 다시 만든다.
   useEffect(() => {
-    // 메트로놈 모드일 때는 이 effect가 Transport를 건드리면 안 된다 — 임베드된
-    // <Metronome bare>가 같은 전역 Transport를 쓰는데, isPlaying이 바뀔 때마다
-    // 여기서 stop/cancel을 호출하면 메트로놈이 막 시작한 시퀀스를 바로 멈춰버린다.
+    // 공용 Transport를 쓰는 메트로놈의 재생을 중단하지 않는다.
     chordChangeRef.current?.(null)
     if (mode !== 'backing') return
 
     setCurrentBeat(null)
     setQuarterBeat(null)
     drumStepRef.current = 0
-    Tone.getTransport().stop() // Bug 2: cancel 전에 stop
+    Tone.getTransport().stop() // 예약 취소 전에 재생을 멈춘다.
     Tone.getTransport().cancel()
-    Tone.getTransport().position = 0 // Bug 2: position 리셋
+    Tone.getTransport().position = 0 // 시작 위치로 되돌린다.
 
     if (!isPlaying) return
     if (!samplerLoaded) return
 
     Tone.getTransport().bpm.value = bpm
 
-    // Apply swing for jazz/blues
+    // 재즈·블루스에는 스윙을 적용한다.
     if (style === 'jazz') {
       Tone.getTransport().swing = 0.5
       Tone.getTransport().swingSubdivision = '8n'
@@ -174,7 +176,7 @@ export function BackingTrackPlayer({
         const step = beatStep % progression.length
         beatStep++
 
-        const delay = Math.max(0, (time - Tone.now()) * 1000 - 20)
+        const delay = Math.max(0, (time - Tone.immediate()) * 1000)
         scheduleVisual(() => {
           setCurrentBeat(step)
           chordChangeRef.current?.(chord)
@@ -205,7 +207,7 @@ export function BackingTrackPlayer({
         drumStepRef.current++
 
         const qBeat = Math.floor(stepIdx / stepsPerQuarter)
-        const delay = Math.max(0, (time - Tone.now()) * 1000 - 20)
+        const delay = Math.max(0, (time - Tone.immediate()) * 1000)
         scheduleVisual(() => setQuarterBeat(qBeat), delay)
 
         if (step.kick) kickRef.current?.triggerAttackRelease('C1', '8n', time)
@@ -263,7 +265,7 @@ export function BackingTrackPlayer({
 
   const handleSetStyle = (s: BackingStyle) => {
     setStyle(s)
-    setProgressionOverride(null) // Bug 1: 같은 배치로 처리 → Effect 한 번만 트리거
+    setProgressionOverride(null) // 스타일 변경 시 수동 진행을 해제한다.
   }
 
   const cycleSlotChord = (slotIndex: number, direction: 1 | -1) => {
@@ -278,12 +280,11 @@ export function BackingTrackPlayer({
   }
 
   const { chords } = getDiatonicChords(rootNote, scaleType)
-  // 배킹트랙 모드만 피아노 샘플 로딩을 기다린다 — 메트로놈은 로딩 대상이 없다.
+  // 메트로놈은 피아노 로딩을 기다리지 않는다.
   const canPlay = mode === 'backing' ? samplerLoaded : true
 
   return (
     <div className="bg-card border border-border rounded-xl p-6 space-y-5">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative inline-flex p-1 bg-muted rounded-lg">
           {(['backing', 'metronome'] as PlayerMode[]).map(m => (
@@ -352,9 +353,7 @@ export function BackingTrackPlayer({
           >
             {mode === 'backing' && (
               <>
-                {/* Style + BPM */}
                 <div className="flex flex-wrap items-center gap-6">
-                  {/* Style selector */}
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Style</p>
                     <div className="relative inline-flex p-1 bg-muted rounded-lg">
@@ -386,7 +385,6 @@ export function BackingTrackPlayer({
                     </div>
                   </div>
 
-                  {/* Subdivision selector */}
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">비트</p>
                     <div className="relative inline-flex p-1 bg-muted rounded-lg">
@@ -420,7 +418,6 @@ export function BackingTrackPlayer({
                     </div>
                   </div>
 
-                  {/* BPM control */}
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">BPM</p>
                     <div className="flex items-center gap-2">
@@ -455,7 +452,6 @@ export function BackingTrackPlayer({
                     </div>
                   </div>
 
-                  {/* Volume controls */}
                   <div className="space-y-2">
                     <p className="text-xs text-muted-foreground">Volume</p>
                     <div className="flex flex-col gap-1.5">
@@ -495,7 +491,6 @@ export function BackingTrackPlayer({
                   </div>
                 </div>
 
-                {/* Beat Indicator */}
                 <div className="flex justify-center items-center gap-4 py-1">
                   {[0, 1, 2, 3].map(i => {
                     const isActive = isPlaying && quarterBeat === i
@@ -525,7 +520,6 @@ export function BackingTrackPlayer({
                   })}
                 </div>
 
-                {/* Loop progression */}
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground">Loop (4 bars)</p>
                   <div className="flex flex-wrap gap-3">
@@ -566,7 +560,6 @@ export function BackingTrackPlayer({
                   </div>
                 </div>
 
-                {/* Diatonic chords reference */}
                 <div className="space-y-2 border-t border-border pt-4">
                   <p className="text-xs text-muted-foreground">
                     Diatonic Chords

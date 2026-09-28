@@ -33,8 +33,7 @@ const SOUND_LABELS: Record<ClickSound, string> = {
   digital: '디지털',
 }
 
-// 소리별 체감 음량 차이를 보정하는 기준 오프셋(dB) — NoiseSynth/MetalSynth는
-// 같은 gain이어도 Synth류보다 훨씬 크게 들려서 개별 보정이 필요하다.
+// 악기별 체감 음량 차이를 dB로 보정한다.
 const SOUND_BASE_DB: Record<ClickSound, number> = {
   beep: -4,
   sine: -2,
@@ -50,11 +49,9 @@ const TAP_TIMEOUT_MS = 2000
 const TAP_HISTORY = 5
 
 interface MetronomeProps {
-  // 다른 컴포넌트(백킹트랙 플레이어 등) 안에 이미 카드 테두리가 있을 때
-  // 카드를 이중으로 겹치지 않도록 바깥 wrapper를 생략한다.
+  // 삽입 모드에서는 바깥 카드를 생략한다.
   bare?: boolean
-  // bare일 때는 재생 상태를 부모(백킹트랙 플레이어의 공용 Play 버튼)가 제어한다 —
-  // 자체 Start/Stop 버튼은 숨기고 이 값만 따른다.
+  // 삽입 모드의 재생 상태는 부모가 제어한다.
   isPlaying?: boolean
 }
 
@@ -63,7 +60,9 @@ export function Metronome({
   isPlaying: controlledIsPlaying,
 }: MetronomeProps = {}) {
   const [uncontrolledIsPlaying, setUncontrolledIsPlaying] = useState(false)
-  const isPlaying = bare ? (controlledIsPlaying ?? false) : uncontrolledIsPlaying
+  const isPlaying = bare
+    ? (controlledIsPlaying ?? false)
+    : uncontrolledIsPlaying
   const {
     bpm,
     bpmInput,
@@ -95,8 +94,7 @@ export function Metronome({
   const digitalRef = useRef<Tone.Synth | null>(null)
   const seqRef = useRef<Tone.Sequence<number> | null>(null)
 
-  // Initialize every sound engine once — cheap synths, kept alive so
-  // switching sound mid-session never needs to (re)build audio nodes.
+  // 소리 전환 때 재생성하지 않도록 악기를 유지한다.
   useEffect(() => {
     beepRef.current = new Tone.Synth({
       oscillator: { type: 'triangle' },
@@ -156,17 +154,20 @@ export function Metronome({
       Tone.getTransport().stop()
       Tone.getTransport().cancel()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     const gain = Tone.gainToDb(volume / 100)
-    if (beepRef.current) beepRef.current.volume.value = gain + SOUND_BASE_DB.beep
-    if (sineRef.current) sineRef.current.volume.value = gain + SOUND_BASE_DB.sine
+    if (beepRef.current)
+      beepRef.current.volume.value = gain + SOUND_BASE_DB.beep
+    if (sineRef.current)
+      sineRef.current.volume.value = gain + SOUND_BASE_DB.sine
     if (clickNoiseRef.current)
       clickNoiseRef.current.volume.value = gain + SOUND_BASE_DB.click
-    if (woodRef.current) woodRef.current.volume.value = gain + SOUND_BASE_DB.wood
-    if (metalRef.current) metalRef.current.volume.value = gain + SOUND_BASE_DB.metal
+    if (woodRef.current)
+      woodRef.current.volume.value = gain + SOUND_BASE_DB.wood
+    if (metalRef.current)
+      metalRef.current.volume.value = gain + SOUND_BASE_DB.metal
     if (digitalRef.current)
       digitalRef.current.volume.value = gain + SOUND_BASE_DB.digital
   }, [volume])
@@ -236,11 +237,11 @@ export function Metronome({
     if (!isPlaying) return
 
     Tone.getTransport().bpm.value = bpm
-    // 같은 페이지의 백킹트랙 플레이어가 앞서 스윙을 걸어둔 채로 Transport를
-    // 넘겨줄 수 있어 재생 시작 시 항상 명시적으로 리셋한다.
+    // 반주에서 남은 스윙 설정을 초기화한다.
     Tone.getTransport().swing = 0
 
     const steps = Array.from({ length: totalTicks }, (_, i) => i)
+    const timers = new Set<ReturnType<typeof setTimeout>>()
 
     seqRef.current = new Tone.Sequence<number>(
       (time, tickIdx) => {
@@ -252,16 +253,31 @@ export function Metronome({
           time
         )
 
-        const delay = Math.max(0, (time - Tone.now()) * 1000 - 20)
-        setTimeout(() => setCurrentTick(tickIdx), delay)
+        const delay = Math.max(0, (time - Tone.immediate()) * 1000)
+        const id = setTimeout(() => {
+          timers.delete(id)
+          setCurrentTick(tickIdx)
+        }, delay)
+        timers.add(id)
       },
       steps,
       SUBDIVISION_CONFIG[subdivision].interval
     )
     seqRef.current.start(0)
     Tone.getTransport().start()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, bpm, beatsPerBar, subdivision, sound, ticksPerBeat, totalTicks])
+    return () => {
+      timers.forEach(clearTimeout)
+      seqRef.current?.dispose()
+    }
+  }, [
+    isPlaying,
+    bpm,
+    beatsPerBar,
+    subdivision,
+    sound,
+    ticksPerBeat,
+    totalTicks,
+  ])
 
   const handleTogglePlay = async () => {
     await Tone.start()
@@ -280,9 +296,7 @@ export function Metronome({
         !bare && 'bg-card border border-border rounded-xl p-6'
       )}
     >
-      {/* Pulse + play button — 원, 도트, 버튼을 항상 세로로 쌓고 가운데 정렬한다.
-          bare일 때는 부모(백킹트랙 플레이어)가 overflow-hidden 컨테이너로 감싸므로
-          펄스 원이 커질 때(scale 1.15) 위쪽이 잘리지 않도록 세로 여백을 남긴다. */}
+      {/* 펄스 확대가 잘리지 않도록 여백을 둔다. */}
       <div
         className={cn(
           'flex flex-col items-center',
@@ -307,16 +321,17 @@ export function Metronome({
           {currentBeat === null ? bpm : currentBeat + 1}
         </motion.div>
 
-        {/* 도트는 항상 같은 박스 크기를 유지하고 transform/opacity로만 애니메이션한다
-            — width/height를 직접 바꾸면 매 비트마다 레이아웃이 재계산되어
-            CLS(레이아웃 시프트)가 발생한다. */}
+        {/* 크기 대신 배율을 바꿔 레이아웃 이동을 막는다. */}
         <div className={cn('flex items-center', bare ? 'gap-1.5' : 'gap-3')}>
           {Array.from({ length: beatsPerBar }, (_, i) => {
             const active = isPlaying && currentBeat === i
             return (
               <motion.div
                 key={i}
-                animate={{ scale: active ? 1 : 0.7, opacity: active ? 1 : 0.35 }}
+                animate={{
+                  scale: active ? 1 : 0.7,
+                  opacity: active ? 1 : 0.35,
+                }}
                 transition={{ duration: 0.15, ease: 'easeOut' }}
                 className={cn(
                   'rounded-full',
@@ -332,8 +347,7 @@ export function Metronome({
           })}
         </div>
 
-        {/* bare일 때는 부모(백킹트랙 플레이어)의 공용 Play 버튼이 재생을 제어하므로
-            여기서는 자체 버튼을 숨긴다 — 버튼 중복/위치 불일치를 막기 위함. */}
+        {/* 삽입 모드에서는 부모의 재생 버튼을 사용한다. */}
         {!bare && (
           <button
             onClick={handleTogglePlay}
@@ -349,12 +363,9 @@ export function Metronome({
         )}
       </div>
 
-      {/* BPM control */}
       <div
         className={cn(
-          bare
-            ? 'flex items-center gap-2'
-            : 'flex flex-col items-center gap-3'
+          bare ? 'flex items-center gap-2' : 'flex flex-col items-center gap-3'
         )}
       >
         <p className={cn('text-xs text-muted-foreground', bare && 'shrink-0')}>
@@ -414,16 +425,13 @@ export function Metronome({
         )}
       </div>
 
-      {/* Beats per bar + subdivision */}
       <div
         className={cn(
           'flex flex-wrap items-center gap-4',
           bare ? 'justify-start' : 'justify-center gap-6'
         )}
       >
-        <div
-          className={cn(bare ? 'flex items-center gap-2' : 'space-y-1')}
-        >
+        <div className={cn(bare ? 'flex items-center gap-2' : 'space-y-1')}>
           <p
             className={cn(
               'text-xs text-muted-foreground',
@@ -458,9 +466,7 @@ export function Metronome({
           </div>
         </div>
 
-        <div
-          className={cn(bare ? 'flex items-center gap-2' : 'space-y-1')}
-        >
+        <div className={cn(bare ? 'flex items-center gap-2' : 'space-y-1')}>
           <p
             className={cn(
               'text-xs text-muted-foreground',
@@ -496,7 +502,6 @@ export function Metronome({
         </div>
       </div>
 
-      {/* Sound picker */}
       <div className={cn(!bare && 'space-y-2')}>
         {!bare && (
           <p className="text-xs text-muted-foreground text-center">소리</p>
@@ -515,7 +520,8 @@ export function Metronome({
               onClick={() => setSound(s)}
               className={cn(
                 'transition-all',
-                sound === s && 'bg-accent-teal text-background hover:bg-accent-teal/90'
+                sound === s &&
+                  'bg-accent-teal text-background hover:bg-accent-teal/90'
               )}
             >
               {SOUND_LABELS[s]}
@@ -524,7 +530,6 @@ export function Metronome({
         </div>
       </div>
 
-      {/* Volume */}
       <div
         className={cn(
           'flex items-center gap-3',
