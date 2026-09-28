@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Mic, MicOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -11,14 +11,17 @@ import {
   centsFromTarget,
   type PitchDetection,
 } from '@/lib/pitch-utils'
-import { STANDARD_TUNING_MIDI, CHROMATIC_NOTES, NOTES_FLAT } from '@/lib/music-utils'
+import {
+  STANDARD_TUNING_MIDI,
+  CHROMATIC_NOTES,
+  NOTES_FLAT,
+} from '@/lib/music-utils'
 
 type MicState = 'idle' | 'requesting' | 'listening' | 'denied' | 'error'
 type Status = 'no-selection' | 'awaiting-input' | 'in-tune' | 'flat' | 'sharp'
 
 const IN_TUNE_CENTS = 5
-// 저음현(E2 ≈ 82Hz)은 2048 샘플(약 46ms) 윈도우에 3~4주기밖에 담기지 않아 자기상관
-// 추정이 흔들린다 — 4096(약 93ms)으로 늘려 저음역 정확도를 확보한다.
+// 저음 E의 주기를 충분히 담도록 4096샘플을 사용한다.
 const FFT_SIZE = 4096
 
 type TuningId =
@@ -31,10 +34,7 @@ type TuningId =
   | 'open-g'
   | 'open-d'
 
-// 실제 튜너 앱(GuitarTuna, Fender Tune)의 관례를 따른다: 스탠다드가 기본이고,
-// 다운 튜닝(하프 다운/1음 다운) → 드롭 튜닝 → 오픈 튜닝 순으로 그룹핑한다.
-// midi는 저음(6번 줄)→고음(1번 줄) 순서. 하프 다운은 관례상 플랫(Eb Ab Db…)으로
-// 표기하므로 useFlat으로 표기 배열을 바꾼다.
+// MIDI는 6번 줄부터 1번 줄 순서이며 하프 다운은 플랫으로 표기한다.
 type Tuning = {
   id: TuningId
   label: string
@@ -44,28 +44,67 @@ type Tuning = {
 }
 
 const TUNINGS: Tuning[] = [
-  { id: 'standard', label: '스탠다드', group: '기본', midi: [...STANDARD_TUNING_MIDI].reverse() },
-  { id: 'half-step-down', label: '하프 다운 (반음 ↓)', group: '다운 튜닝', midi: [39, 44, 49, 54, 58, 63], useFlat: true },
-  { id: 'whole-step-down', label: '1음 다운 (온음 ↓)', group: '다운 튜닝', midi: [38, 43, 48, 53, 57, 62] },
-  { id: 'drop-d', label: '드롭 D', group: '드롭 튜닝', midi: [38, 45, 50, 55, 59, 64] },
-  { id: 'drop-c', label: '드롭 C', group: '드롭 튜닝', midi: [36, 43, 48, 53, 57, 62] },
-  { id: 'open-g', label: '오픈 G', group: '오픈 튜닝', midi: [38, 43, 50, 55, 59, 62] },
-  { id: 'open-d', label: '오픈 D', group: '오픈 튜닝', midi: [38, 45, 50, 54, 57, 62] },
-  { id: 'dadgad', label: 'DADGAD', group: '오픈 튜닝', midi: [38, 45, 50, 55, 57, 62] },
+  {
+    id: 'standard',
+    label: '스탠다드',
+    group: '기본',
+    midi: [...STANDARD_TUNING_MIDI].reverse(),
+  },
+  {
+    id: 'half-step-down',
+    label: '하프 다운 (반음 ↓)',
+    group: '다운 튜닝',
+    midi: [39, 44, 49, 54, 58, 63],
+    useFlat: true,
+  },
+  {
+    id: 'whole-step-down',
+    label: '1음 다운 (온음 ↓)',
+    group: '다운 튜닝',
+    midi: [38, 43, 48, 53, 57, 62],
+  },
+  {
+    id: 'drop-d',
+    label: '드롭 D',
+    group: '드롭 튜닝',
+    midi: [38, 45, 50, 55, 59, 64],
+  },
+  {
+    id: 'drop-c',
+    label: '드롭 C',
+    group: '드롭 튜닝',
+    midi: [36, 43, 48, 53, 57, 62],
+  },
+  {
+    id: 'open-g',
+    label: '오픈 G',
+    group: '오픈 튜닝',
+    midi: [38, 43, 50, 55, 59, 62],
+  },
+  {
+    id: 'open-d',
+    label: '오픈 D',
+    group: '오픈 튜닝',
+    midi: [38, 45, 50, 54, 57, 62],
+  },
+  {
+    id: 'dadgad',
+    label: 'DADGAD',
+    group: '오픈 튜닝',
+    midi: [38, 45, 50, 55, 57, 62],
+  },
 ]
 
 const TUNING_GROUPS = ['기본', '다운 튜닝', '드롭 튜닝', '오픈 튜닝'] as const
 
-// 옵션에 표시할 현 구성(예: "E A D G B E")은 midi에서 파생한다 — 하드코딩 금지.
+// 프리셋 음이름은 MIDI에서 구한다.
 function tuningNotesLabel(tuning: Tuning) {
   return buildStrings(tuning)
     .map(s => s.noteName)
     .join(' ')
 }
 
-// 헤드스톡 GUI는 저음(6번, 왼쪽)→고음(1번, 오른쪽) 순서로 그린다 — 페그의 메인
-// 라벨은 튜닝의 음이름(E A D G B E …)이고, 줄 번호(1번=가는 고음현 ~ 6번=굵은
-// 저음현)는 보조 라벨로 붙인다.
+// 저음부터 고음 순서로 음이름과 줄 번호를 만든다.
 function buildStrings(tuning: (typeof TUNINGS)[number]) {
   const noteNames = tuning.useFlat ? NOTES_FLAT : CHROMATIC_NOTES
   return tuning.midi.map((midi, i) => {
@@ -93,26 +132,29 @@ export function Tuner() {
   const analyserRef = useRef<AnalyserNode | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const rafRef = useRef<number | null>(null)
-  const bufferRef = useRef<Float32Array>(new Float32Array(FFT_SIZE))
-  // 최근 유효 주파수 값의 중앙값을 사용해 프레임 간 튀는 값(자기상관 추정 잡음)을
-  // 완화한다 — 경계값(±5 cents) 근처에서 판정이 매 프레임 깜빡이는 것을 막아준다.
+  const bufferRef = useRef(new Float32Array(FFT_SIZE))
+  // 최근 주파수의 중앙값으로 판정 깜빡임을 줄인다.
   const recentFreqsRef = useRef<number[]>([])
+  const requestRef = useRef(0)
 
-  const stopListening = () => {
+  const stopListening = useCallback(() => {
+    requestRef.current++
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
     rafRef.current = null
     streamRef.current?.getTracks().forEach(track => track.stop())
     streamRef.current = null
-    audioCtxRef.current?.close()
+    void audioCtxRef.current?.close().catch(() => {})
     audioCtxRef.current = null
     analyserRef.current = null
     recentFreqsRef.current = []
     setPitch(null)
-  }
+  }, [])
 
-  useEffect(() => stopListening, [])
+  useEffect(() => stopListening, [stopListening])
 
   const startListening = async () => {
+    stopListening()
+    const request = requestRef.current
     setMicState('requesting')
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -122,10 +164,17 @@ export function Tuner() {
           autoGainControl: false,
         },
       })
+      // 페이지를 떠난 뒤 허용된 마이크도 즉시 종료한다.
+      if (request !== requestRef.current) {
+        stream.getTracks().forEach(track => track.stop())
+        return
+      }
       streamRef.current = stream
 
       const audioCtx = new AudioContext()
       audioCtxRef.current = audioCtx
+      await audioCtx.resume()
+      if (request !== requestRef.current) return
       const source = audioCtx.createMediaStreamSource(stream)
       const analyser = audioCtx.createAnalyser()
       analyser.fftSize = FFT_SIZE
@@ -139,7 +188,10 @@ export function Tuner() {
         const currentAnalyser = analyserRef.current
         if (!currentAnalyser || !audioCtxRef.current) return
         currentAnalyser.getFloatTimeDomainData(bufferRef.current)
-        const freq = autoCorrelate(bufferRef.current, audioCtxRef.current.sampleRate)
+        const freq = autoCorrelate(
+          bufferRef.current,
+          audioCtxRef.current.sampleRate
+        )
 
         if (freq > 0) {
           const recent = recentFreqsRef.current
@@ -155,8 +207,14 @@ export function Tuner() {
         rafRef.current = requestAnimationFrame(tick)
       }
       tick()
-    } catch {
-      setMicState('denied')
+    } catch (error) {
+      if (request !== requestRef.current) return
+      stopListening()
+      setMicState(
+        error instanceof DOMException && error.name === 'NotAllowedError'
+          ? 'denied'
+          : 'error'
+      )
     }
   }
 
@@ -165,7 +223,7 @@ export function Tuner() {
       stopListening()
       setMicState('idle')
     } else {
-      startListening()
+      return startListening()
     }
   }
 
@@ -174,7 +232,9 @@ export function Tuner() {
   }
 
   const selectedString = selectedIndex !== null ? strings[selectedIndex] : null
-  const targetFrequency = selectedString ? noteToFrequency(selectedString.midi) : null
+  const targetFrequency = selectedString
+    ? noteToFrequency(selectedString.midi)
+    : null
   const centsToTarget =
     pitch !== null && targetFrequency !== null
       ? centsFromTarget(pitch.frequency, targetFrequency)
@@ -191,7 +251,10 @@ export function Tuner() {
             ? 'flat'
             : 'sharp'
 
-  const STATUS_COPY: Record<Status, { heading: string; sub: string; color: string }> = {
+  const STATUS_COPY: Record<
+    Status,
+    { heading: string; sub: string; color: string }
+  > = {
     'no-selection': {
       heading: '줄을 선택하세요',
       sub: '아래 헤드스톡에서 튜닝할 줄을 탭하세요',
@@ -227,13 +290,20 @@ export function Tuner() {
   const copy = STATUS_COPY[status]
   const needleValue = Math.max(-50, Math.min(50, centsToTarget ?? 0))
   const needleColor =
-    status === 'in-tune' ? 'bg-accent-teal' : status === 'flat' || status === 'sharp' ? 'bg-accent-orange' : 'bg-muted-foreground/30'
+    status === 'in-tune'
+      ? 'bg-accent-teal'
+      : status === 'flat' || status === 'sharp'
+        ? 'bg-accent-orange'
+        : 'bg-muted-foreground/30'
 
   return (
     <div className="bg-card border border-border rounded-xl p-6 space-y-8">
-      {/* Tuning selector — 실제 튜너 앱처럼 최상단에서 튜닝을 먼저 고른다. 기본은 스탠다드(EADGBE). */}
+      {/* 튜닝 프리셋 */}
       <div className="flex flex-col items-center gap-1.5">
-        <label htmlFor="tuning-select" className="text-xs text-muted-foreground">
+        <label
+          htmlFor="tuning-select"
+          className="text-xs text-muted-foreground"
+        >
           튜닝
         </label>
         <select
@@ -254,30 +324,39 @@ export function Tuner() {
         </select>
       </div>
 
-      {/* Status display */}
       <div className="flex flex-col items-center gap-3 py-4 min-h-[9.5rem] justify-center">
-        <h2 className={cn('text-3xl md:text-4xl font-bold text-balance text-center transition-colors', copy.color)}>
+        <h2
+          className={cn(
+            'text-3xl md:text-4xl font-bold text-balance text-center transition-colors',
+            copy.color
+          )}
+        >
           {copy.heading}
         </h2>
         <p className="text-sm text-muted-foreground text-center">{copy.sub}</p>
 
-        {pitch !== null && selectedString !== null && centsToTarget !== null && (
-          <p className="text-xs font-mono tabular-nums text-muted-foreground">
-            {pitch.note}
-            {pitch.octave} · {pitch.frequency.toFixed(1)} Hz ·{' '}
-            {centsToTarget > 0 ? '+' : ''}
-            {centsToTarget} cents
-          </p>
-        )}
+        {pitch !== null &&
+          selectedString !== null &&
+          centsToTarget !== null && (
+            <p className="text-xs font-mono tabular-nums text-muted-foreground">
+              {pitch.note}
+              {pitch.octave} · {pitch.frequency.toFixed(1)} Hz ·{' '}
+              {centsToTarget > 0 ? '+' : ''}
+              {centsToTarget} cents
+            </p>
+          )}
 
-        {/* Cents meter: -50 ~ +50, relative to selected string's target pitch */}
+        {/* 선택한 줄 기준 -50~50센트 편차 */}
         <div className="w-full max-w-xs">
           <div className="relative h-3 bg-muted rounded-full overflow-hidden">
             <div className="absolute left-1/2 top-0 bottom-0 w-px bg-border" />
             <motion.div
               animate={{ left: `${50 + needleValue / 2}%` }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className={cn('absolute top-0 bottom-0 w-3 -ml-1.5 rounded-full transition-colors', needleColor)}
+              className={cn(
+                'absolute top-0 bottom-0 w-3 -ml-1.5 rounded-full transition-colors',
+                needleColor
+              )}
             />
           </div>
           <div className="flex justify-between mt-1 text-xs text-muted-foreground">
@@ -288,7 +367,6 @@ export function Tuner() {
         </div>
       </div>
 
-      {/* Mic toggle */}
       <div className="flex flex-col items-center gap-3">
         <button
           onClick={handleToggle}
@@ -311,10 +389,11 @@ export function Tuner() {
           )}
         </button>
 
-        {micState === 'denied' && (
+        {(micState === 'denied' || micState === 'error') && (
           <p className="text-xs text-destructive text-center max-w-xs">
-            마이크 권한이 거부되었습니다. 브라우저 설정에서 마이크 접근을 허용한 뒤 다시
-            시도해주세요.
+            {micState === 'denied'
+              ? '마이크 권한이 거부되었습니다. 브라우저 설정에서 마이크 접근을 허용한 뒤 다시 시도해주세요.'
+              : '마이크를 시작하지 못했습니다. 장치 연결과 다른 앱의 사용 여부를 확인해주세요.'}
           </p>
         )}
         {micState === 'requesting' && (
@@ -322,7 +401,7 @@ export function Tuner() {
         )}
       </div>
 
-      {/* Guitar headstock — 페그(음이름)를 탭해서 튜닝할 줄을 선택한다 */}
+      {/* 페그를 눌러 튜닝할 줄을 선택한다. */}
       <div className="space-y-2">
         <p className="text-xs text-muted-foreground text-center">
           튜닝할 줄을 선택하세요
@@ -338,10 +417,7 @@ export function Tuner() {
   )
 }
 
-// 3+3(어쿠스틱/클래식 스타일) 헤드스톡: 좌측 위→아래로 4·5·6번 줄, 우측 위→아래로
-// 3·2·1번 줄 페그를 배치한다 — 실제 기타와 같은 배열. 헤드스톡 실루엣·스트링 포스트·
-// 페그 버튼·현을 하나의 SVG 좌표계에 그려 정확히 이어져 보이게 한다.
-// strings 배열 인덱스는 저음(i=0, 6번)→고음(i=5, 1번) 순서.
+// 왼쪽 위부터 4·5·6번, 오른쪽 위부터 3·2·1번 줄을 배치한다.
 const PEG_LAYOUT = [
   { peg: [46, 184], post: [120, 184], nutX: 136 }, // 6번 (좌측 아래)
   { peg: [46, 118], post: [120, 118], nutX: 146 }, // 5번 (좌측 중간)
@@ -361,7 +437,12 @@ function GuitarHeadstock({
   status,
   onSelect,
 }: {
-  strings: { midi: number; noteName: string; note: string; stringNumber: number }[]
+  strings: {
+    midi: number
+    noteName: string
+    note: string
+    stringNumber: number
+  }[]
   selectedIndex: number | null
   status: Status
   onSelect: (i: number) => void
@@ -373,14 +454,14 @@ function GuitarHeadstock({
       role="group"
       aria-label="기타 헤드스톡 — 튜닝할 줄 선택"
     >
-      {/* Headstock silhouette: 아래 좁은 넥 스텁 → 위로 벌어지는 패들 형태 */}
+      {/* 헤드스톡 윤곽 */}
       <path
         d={`M132,${BOTTOM_Y} L132,${NUT_Y} L94,196 L94,36 Q94,18 112,18 L208,18 Q226,18 226,36 L226,196 L188,${NUT_Y} L188,${BOTTOM_Y} Z`}
         className="fill-muted stroke-border"
         strokeWidth={1.5}
       />
 
-      {/* Peg shafts: 헤드스톡 밖 페그 버튼 ↔ 안쪽 스트링 포스트 연결 */}
+      {/* 페그와 줄감개 축 연결 */}
       {PEG_LAYOUT.map((p, i) => (
         <line
           key={i}
@@ -394,8 +475,14 @@ function GuitarHeadstock({
         />
       ))}
 
-      {/* Nut */}
-      <rect x={132} y={NUT_Y - 3} width={56} height={5} rx={2} className="fill-border" />
+      <rect
+        x={132}
+        y={NUT_Y - 3}
+        width={56}
+        height={5}
+        rx={2}
+        className="fill-border"
+      />
 
       {strings.map((s, i) => {
         const selected = selectedIndex === i
@@ -416,7 +503,6 @@ function GuitarHeadstock({
               strokeWidth={STRING_WIDTH[i]}
               strokeLinecap="round"
             />
-            {/* String post */}
             <circle
               cx={post[0]}
               cy={post[1]}
