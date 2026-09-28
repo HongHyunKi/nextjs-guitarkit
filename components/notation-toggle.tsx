@@ -22,8 +22,9 @@ export function NotationToggle({ type, onTypeChange }: NotationToggleProps) {
         <button
           key={item.type}
           onClick={() => onTypeChange(item.type)}
+          aria-pressed={type === item.type}
           className={cn(
-            'relative px-4 py-2 text-sm font-medium rounded-md transition-colors z-10',
+            'relative min-h-11 px-4 py-2 text-sm font-medium rounded-md transition-colors z-10',
             type === item.type
               ? 'text-foreground'
               : 'text-muted-foreground hover:text-foreground'

@@ -9,7 +9,10 @@ interface GuitarToneToggleProps {
   onToneChange: (tone: GuitarTone) => void
 }
 
-export function GuitarToneToggle({ tone, onToneChange }: GuitarToneToggleProps) {
+export function GuitarToneToggle({
+  tone,
+  onToneChange,
+}: GuitarToneToggleProps) {
   const items: { tone: GuitarTone; label: string }[] = [
     { tone: 'electric', label: '일렉' },
     { tone: 'acoustic', label: '어쿠스틱' },

@@ -20,7 +20,7 @@ export function Footer() {
 
           <div className="flex items-center gap-4">
             <a
-              href="mailto:dev.hyunki@gmail.com"
+              href="mailto:dev.hyunki@gmail.com?subject=%5BGuitarKit%5D%20%3A%20"
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <Mail className="w-4 h-4" />

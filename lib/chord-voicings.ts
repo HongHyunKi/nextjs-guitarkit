@@ -6,8 +6,7 @@ import {
   isChordFlat,
 } from '@/lib/music-utils'
 
-// 무버블 코드 폼: 루트 프렛 기준 상대 오프셋 (현 순서: 저음 6번줄 → 고음 1번줄, -1 = 뮤트)
-// 루트가 놓이는 현(rootString)을 따라 폼을 이동시켜 12키 보이싱을 생성한다.
+// 6번 줄부터의 상대 프렛이며 -1은 뮤트다. 루트에 맞춰 이동한다.
 export type ChordForm = 'E' | 'A' | 'D'
 
 interface FormShape {

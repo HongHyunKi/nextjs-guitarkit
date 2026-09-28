@@ -19,134 +19,17 @@ import {
 interface BackingTrackPlayerProps {
   rootNote: string
   scaleType: ScaleType
+  onChordChange?: (chord: Chord | null) => void
 }
 
-type DrumStep = { kick: boolean; snare: boolean; hihat: boolean }
-type Subdivision = '4beat' | '8beat' | '16beat'
-
-const SUBDIVISION_NOTE: Record<Subdivision, string> = {
-  '4beat': '4n',
-  '8beat': '8n',
-  '16beat': '16n',
-}
-
-const SUBDIVISION_LABELS: Record<Subdivision, string> = {
-  '4beat': '4비트',
-  '8beat': '8비트',
-  '16beat': '16비트',
-}
-
-// 4비트: 4스텝(4분음표), 8비트: 8스텝(8분음표), 16비트: 16스텝(16분음표)
-const DRUM_PATTERNS: Record<BackingStyle, Record<Subdivision, DrumStep[]>> = {
-  rock: {
-    '4beat': [
-      { kick: true, snare: false, hihat: true }, // beat 1
-      { kick: false, snare: true, hihat: true }, // beat 2
-      { kick: true, snare: false, hihat: true }, // beat 3
-      { kick: false, snare: true, hihat: true }, // beat 4
-    ],
-    '8beat': [
-      { kick: true, snare: false, hihat: true }, // 1 down
-      { kick: false, snare: false, hihat: true }, // 1 up
-      { kick: false, snare: true, hihat: true }, // 2 down
-      { kick: false, snare: false, hihat: true }, // 2 up
-      { kick: true, snare: false, hihat: true }, // 3 down
-      { kick: false, snare: false, hihat: true }, // 3 up
-      { kick: false, snare: true, hihat: true }, // 4 down
-      { kick: false, snare: false, hihat: true }, // 4 up
-    ],
-    '16beat': [
-      { kick: true, snare: false, hihat: true }, // beat 1
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true }, // beat 2
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: true, snare: false, hihat: true }, // beat 3
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true }, // beat 4
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-    ],
-  },
-  blues: {
-    '4beat': [
-      { kick: true, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: false },
-      { kick: true, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: false },
-    ],
-    '8beat': [
-      { kick: true, snare: false, hihat: true }, // 1 down (swing 적용)
-      { kick: false, snare: false, hihat: true }, // 1 up
-      { kick: false, snare: true, hihat: false }, // 2 down
-      { kick: false, snare: false, hihat: true }, // 2 up (shuffle)
-      { kick: true, snare: false, hihat: true }, // 3 down
-      { kick: false, snare: false, hihat: true }, // 3 up
-      { kick: false, snare: true, hihat: false }, // 4 down
-      { kick: false, snare: false, hihat: true }, // 4 up (shuffle)
-    ],
-    '16beat': [
-      { kick: true, snare: false, hihat: true }, // beat 1
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // shuffle accent
-      { kick: false, snare: true, hihat: true }, // beat 2
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // shuffle accent
-      { kick: false, snare: false, hihat: true },
-      { kick: true, snare: false, hihat: true }, // beat 3
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // shuffle accent
-      { kick: false, snare: true, hihat: true }, // beat 4
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // shuffle accent
-      { kick: false, snare: false, hihat: true },
-    ],
-  },
-  jazz: {
-    '4beat': [
-      { kick: true, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true },
-      { kick: false, snare: false, hihat: true },
-    ],
-    '8beat': [
-      { kick: true, snare: false, hihat: true }, // 1
-      { kick: false, snare: false, hihat: true }, // 1+ (swing)
-      { kick: false, snare: true, hihat: false }, // 2
-      { kick: false, snare: false, hihat: true }, // 2+ (swing)
-      { kick: false, snare: false, hihat: true }, // 3
-      { kick: false, snare: false, hihat: true }, // 3+ (swing)
-      { kick: false, snare: true, hihat: false }, // 4
-      { kick: false, snare: false, hihat: true }, // 4+ (swing)
-    ],
-    '16beat': [
-      { kick: true, snare: false, hihat: true }, // beat 1
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // triplet accent
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true }, // beat 2
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // beat 3
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // triplet accent
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true }, // beat 4
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true },
-    ],
-  },
-}
+import {
+  DRUM_PATTERNS,
+  SUBDIVISION_NOTE,
+  SUBDIVISION_LABELS,
+  type DrumStep,
+  type Subdivision,
+} from '@/lib/drum-patterns'
+import { createDrumKit } from '@/lib/drum-kit'
 
 const STYLE_LABELS: Record<BackingStyle, string> = {
   rock: 'Rock',
@@ -159,6 +42,7 @@ type PlayerMode = 'backing' | 'metronome'
 export function BackingTrackPlayer({
   rootNote,
   scaleType,
+  onChordChange,
 }: BackingTrackPlayerProps) {
   const [mode, setMode] = useState<PlayerMode>('backing')
   const [expanded, setExpanded] = useState(true)
@@ -170,7 +54,12 @@ export function BackingTrackPlayer({
     handleBpmInputChange,
     handleBpmBlur,
     handleTapTempo,
-  } = useBpmControl({ initialBpm: 90, min: 60, max: 200 })
+  } = useBpmControl({
+    initialBpm: 90,
+    min: 60,
+    max: 200,
+    storageKey: 'guitarkit:backing-bpm',
+  })
   const [style, setStyle] = useState<BackingStyle>('rock')
   const [progressionOverride, setProgressionOverride] = useState<
     number[] | null
@@ -182,7 +71,7 @@ export function BackingTrackPlayer({
   const [chordVolume, setChordVolume] = useState(60)
   const [drumVolume, setDrumVolume] = useState(80)
 
-  // Derived: 수동 오버라이드 없으면 스타일 프리셋 사용 (useMemo로 레퍼런스 안정화)
+  // 수동 진행이 없으면 스타일 기본값을 사용한다.
   const progressionIndices = useMemo(
     () => progressionOverride ?? getStyleProgression(style, scaleType),
     [progressionOverride, style, scaleType]
@@ -195,9 +84,14 @@ export function BackingTrackPlayer({
   const chordSeqRef = useRef<Tone.Sequence<Chord> | null>(null)
   const drumSeqRef = useRef<Tone.Sequence<DrumStep> | null>(null)
   const drumStepRef = useRef(0)
-
-  // Initialize audio instruments once on mount
+  const chordChangeRef = useRef(onChordChange)
   useEffect(() => {
+    chordChangeRef.current = onChordChange
+  }, [onChordChange])
+
+  // 진입 시 악기를 한 번 생성한다.
+  useEffect(() => {
+    let active = true
     samplerRef.current = new Tone.Sampler({
       urls: {
         C4: 'C4.mp3',
@@ -210,32 +104,18 @@ export function BackingTrackPlayer({
         A5: 'A5.mp3',
       },
       baseUrl: 'https://tonejs.github.io/audio/salamander/',
-      onload: () => setSamplerLoaded(true),
+      onload: () => {
+        if (active) setSamplerLoaded(true)
+      },
     }).toDestination()
 
-    kickRef.current = new Tone.MembraneSynth({
-      pitchDecay: 0.05,
-      octaves: 4,
-      envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.1 },
-    }).toDestination()
-    kickRef.current.volume.value = -6
-
-    snareRef.current = new Tone.NoiseSynth({
-      noise: { type: 'white' },
-      envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.05 },
-    }).toDestination()
-    snareRef.current.volume.value = -10
-
-    hihatRef.current = new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 },
-      harmonicity: 5.1,
-      modulationIndex: 32,
-      resonance: 4000,
-      octaves: 1.5,
-    }).toDestination()
-    hihatRef.current.volume.value = -18
+    const drums = createDrumKit(Tone.getDestination())
+    kickRef.current = drums.kick
+    snareRef.current = drums.snare
+    hihatRef.current = drums.hihat
 
     return () => {
+      active = false
       samplerRef.current?.dispose()
       kickRef.current?.dispose()
       snareRef.current?.dispose()
@@ -247,26 +127,25 @@ export function BackingTrackPlayer({
     }
   }, [])
 
-  // Rebuild sequences whenever playback params change
+  // 재생 설정이 바뀌면 시퀀스를 다시 만든다.
   useEffect(() => {
-    // 메트로놈 모드일 때는 이 effect가 Transport를 건드리면 안 된다 — 임베드된
-    // <Metronome bare>가 같은 전역 Transport를 쓰는데, isPlaying이 바뀔 때마다
-    // 여기서 stop/cancel을 호출하면 메트로놈이 막 시작한 시퀀스를 바로 멈춰버린다.
+    // 공용 Transport를 쓰는 메트로놈의 재생을 중단하지 않는다.
+    chordChangeRef.current?.(null)
     if (mode !== 'backing') return
 
     setCurrentBeat(null)
     setQuarterBeat(null)
     drumStepRef.current = 0
-    Tone.getTransport().stop() // Bug 2: cancel 전에 stop
+    Tone.getTransport().stop() // 예약 취소 전에 재생을 멈춘다.
     Tone.getTransport().cancel()
-    Tone.getTransport().position = 0 // Bug 2: position 리셋
+    Tone.getTransport().position = 0 // 시작 위치로 되돌린다.
 
     if (!isPlaying) return
     if (!samplerLoaded) return
 
     Tone.getTransport().bpm.value = bpm
 
-    // Apply swing for jazz/blues
+    // 재즈·블루스에는 스윙을 적용한다.
     if (style === 'jazz') {
       Tone.getTransport().swing = 0.5
       Tone.getTransport().swingSubdivision = '8n'
@@ -283,14 +162,25 @@ export function BackingTrackPlayer({
     )
 
     let beatStep = 0
+    const timers = new Set<ReturnType<typeof setTimeout>>()
+    const scheduleVisual = (callback: () => void, delay: number) => {
+      const id = setTimeout(() => {
+        timers.delete(id)
+        callback()
+      }, delay)
+      timers.add(id)
+    }
 
     chordSeqRef.current = new Tone.Sequence<Chord>(
       (time, chord) => {
         const step = beatStep % progression.length
         beatStep++
 
-        const delay = Math.max(0, (time - Tone.now()) * 1000 - 20)
-        setTimeout(() => setCurrentBeat(step), delay)
+        const delay = Math.max(0, (time - Tone.immediate()) * 1000)
+        scheduleVisual(() => {
+          setCurrentBeat(step)
+          chordChangeRef.current?.(chord)
+        }, delay)
 
         if (samplerRef.current) {
           chord.midiNotes.forEach((midi, i) => {
@@ -317,12 +207,12 @@ export function BackingTrackPlayer({
         drumStepRef.current++
 
         const qBeat = Math.floor(stepIdx / stepsPerQuarter)
-        const delay = Math.max(0, (time - Tone.now()) * 1000 - 20)
-        setTimeout(() => setQuarterBeat(qBeat), delay)
+        const delay = Math.max(0, (time - Tone.immediate()) * 1000)
+        scheduleVisual(() => setQuarterBeat(qBeat), delay)
 
         if (step.kick) kickRef.current?.triggerAttackRelease('C1', '8n', time)
         if (step.snare) snareRef.current?.triggerAttackRelease('8n', time)
-        if (step.hihat) hihatRef.current?.triggerAttackRelease('32n', time)
+        if (step.hihat) hihatRef.current?.triggerAttackRelease(200, '32n', time)
       },
       DRUM_PATTERNS[style][subdivision],
       SUBDIVISION_NOTE[subdivision]
@@ -332,6 +222,8 @@ export function BackingTrackPlayer({
     Tone.getTransport().start()
 
     return () => {
+      timers.forEach(clearTimeout)
+      chordChangeRef.current?.(null)
       chordSeqRef.current?.dispose()
       drumSeqRef.current?.dispose()
     }
@@ -373,7 +265,7 @@ export function BackingTrackPlayer({
 
   const handleSetStyle = (s: BackingStyle) => {
     setStyle(s)
-    setProgressionOverride(null) // Bug 1: 같은 배치로 처리 → Effect 한 번만 트리거
+    setProgressionOverride(null) // 스타일 변경 시 수동 진행을 해제한다.
   }
 
   const cycleSlotChord = (slotIndex: number, direction: 1 | -1) => {
@@ -388,20 +280,19 @@ export function BackingTrackPlayer({
   }
 
   const { chords } = getDiatonicChords(rootNote, scaleType)
-  // 배킹트랙 모드만 피아노 샘플 로딩을 기다린다 — 메트로놈은 로딩 대상이 없다.
+  // 메트로놈은 피아노 로딩을 기다리지 않는다.
   const canPlay = mode === 'backing' ? samplerLoaded : true
 
   return (
     <div className="bg-card border border-border rounded-xl p-6 space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative inline-flex p-1 bg-muted rounded-lg">
           {(['backing', 'metronome'] as PlayerMode[]).map(m => (
             <button
               key={m}
               onClick={() => handleSetMode(m)}
               className={cn(
-                'relative px-4 py-1.5 text-sm font-medium rounded-md transition-colors z-10',
+                'relative min-h-11 whitespace-nowrap px-4 py-1.5 text-sm font-medium rounded-md transition-colors z-10',
                 mode === m
                   ? 'text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -423,7 +314,7 @@ export function BackingTrackPlayer({
             onClick={handleTogglePlay}
             disabled={!canPlay}
             className={cn(
-              'px-5 py-2 rounded-lg text-sm font-semibold transition-all',
+              'min-h-11 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold transition-all',
               isPlaying
                 ? 'bg-accent-orange text-background hover:opacity-90'
                 : canPlay
@@ -437,7 +328,7 @@ export function BackingTrackPlayer({
             onClick={() => setExpanded(prev => !prev)}
             aria-label={expanded ? '세부 설정 접기' : '세부 설정 펼치기'}
             aria-expanded={expanded}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-accent-teal/10 hover:border-accent-teal transition-colors text-muted-foreground"
+            className="w-11 h-11 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-accent-teal/10 hover:border-accent-teal transition-colors text-muted-foreground"
           >
             <motion.span
               animate={{ rotate: expanded ? 180 : 0 }}
@@ -460,228 +351,236 @@ export function BackingTrackPlayer({
             transition={{ duration: 0.25, ease: 'easeOut' }}
             className="overflow-hidden space-y-5"
           >
-      {mode === 'backing' && (
-        <>
-      {/* Style + BPM */}
-      <div className="flex flex-wrap items-center gap-6">
-        {/* Style selector */}
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Style</p>
-          <div className="relative inline-flex p-1 bg-muted rounded-lg">
-            {(Object.keys(STYLE_LABELS) as BackingStyle[]).map(s => (
-              <button
-                key={s}
-                onClick={() => handleSetStyle(s)}
-                className={cn(
-                  'relative px-4 py-2 text-sm font-medium rounded-md transition-colors z-10',
-                  style === s
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {style === s && (
-                  <motion.div
-                    layoutId="backing-style"
-                    className="absolute inset-0 bg-background rounded-md shadow-sm z-[-1]"
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  />
-                )}
-                {STYLE_LABELS[s]}
-              </button>
-            ))}
-          </div>
-        </div>
+            {mode === 'backing' && (
+              <>
+                <div className="flex flex-wrap items-center gap-6">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Style</p>
+                    <div className="relative inline-flex p-1 bg-muted rounded-lg">
+                      {(Object.keys(STYLE_LABELS) as BackingStyle[]).map(s => (
+                        <button
+                          key={s}
+                          onClick={() => handleSetStyle(s)}
+                          className={cn(
+                            'relative px-4 py-2 text-sm font-medium rounded-md transition-colors z-10',
+                            style === s
+                              ? 'text-foreground'
+                              : 'text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          {style === s && (
+                            <motion.div
+                              layoutId="backing-style"
+                              className="absolute inset-0 bg-background rounded-md shadow-sm z-[-1]"
+                              transition={{
+                                type: 'spring',
+                                stiffness: 300,
+                                damping: 30,
+                              }}
+                            />
+                          )}
+                          {STYLE_LABELS[s]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-        {/* Subdivision selector */}
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">비트</p>
-          <div className="relative inline-flex p-1 bg-muted rounded-lg">
-            {(Object.keys(SUBDIVISION_LABELS) as Subdivision[]).map(s => (
-              <button
-                key={s}
-                onClick={() => setSubdivision(s)}
-                className={cn(
-                  'relative px-4 py-2 text-sm font-medium rounded-md transition-colors z-10',
-                  subdivision === s
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {subdivision === s && (
-                  <motion.div
-                    layoutId="backing-subdivision"
-                    className="absolute inset-0 bg-background rounded-md shadow-sm z-[-1]"
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  />
-                )}
-                {SUBDIVISION_LABELS[s]}
-              </button>
-            ))}
-          </div>
-        </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">비트</p>
+                    <div className="relative inline-flex p-1 bg-muted rounded-lg">
+                      {(Object.keys(SUBDIVISION_LABELS) as Subdivision[]).map(
+                        s => (
+                          <button
+                            key={s}
+                            onClick={() => setSubdivision(s)}
+                            className={cn(
+                              'relative px-4 py-2 text-sm font-medium rounded-md transition-colors z-10',
+                              subdivision === s
+                                ? 'text-foreground'
+                                : 'text-muted-foreground hover:text-foreground'
+                            )}
+                          >
+                            {subdivision === s && (
+                              <motion.div
+                                layoutId="backing-subdivision"
+                                className="absolute inset-0 bg-background rounded-md shadow-sm z-[-1]"
+                                transition={{
+                                  type: 'spring',
+                                  stiffness: 300,
+                                  damping: 30,
+                                }}
+                              />
+                            )}
+                            {SUBDIVISION_LABELS[s]}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
 
-        {/* BPM control */}
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">BPM</p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleBpmChange(-5)}
-              className="w-8 h-8 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground font-bold transition-colors"
-            >
-              −
-            </button>
-            <input
-              type="number"
-              min={60}
-              max={200}
-              value={bpmInput}
-              onChange={handleBpmInputChange}
-              onFocus={e => e.target.select()}
-              onBlur={handleBpmBlur}
-              className="w-14 text-center text-sm font-mono font-semibold tabular-nums bg-muted rounded-md px-1 py-1 border-0 outline-none focus:ring-1 focus:ring-accent-teal [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-            <button
-              onClick={() => handleBpmChange(5)}
-              className="w-8 h-8 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground font-bold transition-colors"
-            >
-              +
-            </button>
-            <button
-              onClick={handleTapTempo}
-              className="ml-1 px-3 h-8 rounded-md border border-border bg-card hover:border-accent-teal hover:text-accent-teal text-xs font-medium text-muted-foreground transition-colors"
-            >
-              TAP
-            </button>
-          </div>
-        </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">BPM</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleBpmChange(-5)}
+                        className="w-8 h-8 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground font-bold transition-colors"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min={60}
+                        max={200}
+                        value={bpmInput}
+                        onChange={handleBpmInputChange}
+                        onFocus={e => e.target.select()}
+                        onBlur={handleBpmBlur}
+                        className="w-14 text-center text-sm font-mono font-semibold tabular-nums bg-muted rounded-md px-1 py-1 border-0 outline-none focus:ring-1 focus:ring-accent-teal [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <button
+                        onClick={() => handleBpmChange(5)}
+                        className="w-8 h-8 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground font-bold transition-colors"
+                      >
+                        +
+                      </button>
+                      <button
+                        onClick={handleTapTempo}
+                        className="ml-1 px-3 h-8 rounded-md border border-border bg-card hover:border-accent-teal hover:text-accent-teal text-xs font-medium text-muted-foreground transition-colors"
+                      >
+                        TAP
+                      </button>
+                    </div>
+                  </div>
 
-        {/* Volume controls */}
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">Volume</p>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-11">
-                Piano
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={chordVolume}
-                onChange={e => setChordVolume(Number(e.target.value))}
-                className="w-24 accent-accent-teal"
-              />
-              <span className="text-xs text-muted-foreground w-7 tabular-nums">
-                {chordVolume}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-11">
-                Drums
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={drumVolume}
-                onChange={e => setDrumVolume(Number(e.target.value))}
-                className="w-24 accent-accent-teal"
-              />
-              <span className="text-xs text-muted-foreground w-7 tabular-nums">
-                {drumVolume}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Beat Indicator */}
-      <div className="flex justify-center items-center gap-4 py-1">
-        {[0, 1, 2, 3].map(i => {
-          const isActive = isPlaying && quarterBeat === i
-          const isDownbeat = i === 0
-          return (
-            <motion.div
-              key={i}
-              animate={
-                isActive
-                  ? { scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }
-                  : { scale: 1, opacity: 0.2 }
-              }
-              transition={{ duration: (60 / bpm) * 0.7, ease: 'easeOut' }}
-              className={cn(
-                'rounded-full',
-                isActive
-                  ? isDownbeat
-                    ? 'w-5 h-5 bg-accent-orange shadow-lg shadow-accent-orange/50'
-                    : 'w-5 h-5 bg-accent-teal shadow-lg shadow-accent-teal/50'
-                  : 'w-4 h-4 bg-muted-foreground/30'
-              )}
-            />
-          )
-        })}
-      </div>
-
-          {/* Loop progression */}
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Loop (4 bars)</p>
-            <div className="flex flex-wrap gap-3">
-              {progressionIndices.map((chordIdx, slotIndex) => {
-                const chord = chords[Math.min(chordIdx, chords.length - 1)]
-                const isActive = isPlaying && currentBeat === slotIndex
-                return (
-                  <div
-                    key={slotIndex}
-                    className={cn(
-                      'flex items-center gap-1 px-3 py-2 rounded-lg border transition-all',
-                      isActive
-                        ? 'bg-accent-orange/20 border-accent-orange text-accent-orange'
-                        : 'bg-muted/30 border-border text-foreground'
-                    )}
-                  >
-                    <button
-                      onClick={() => cycleSlotChord(slotIndex, -1)}
-                      className="text-muted-foreground hover:text-foreground transition-colors text-xs px-1"
-                    >
-                      ‹
-                    </button>
-                    <div className="text-center min-w-[48px]">
-                      <div className="text-sm font-bold">
-                        {getChordLabel(chord)}
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Volume</p>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-11">
+                          Piano
+                        </span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={chordVolume}
+                          onChange={e => setChordVolume(Number(e.target.value))}
+                          className="w-24 accent-accent-teal"
+                        />
+                        <span className="text-xs text-muted-foreground w-7 tabular-nums">
+                          {chordVolume}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-11">
+                          Drums
+                        </span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={drumVolume}
+                          onChange={e => setDrumVolume(Number(e.target.value))}
+                          className="w-24 accent-accent-teal"
+                        />
+                        <span className="text-xs text-muted-foreground w-7 tabular-nums">
+                          {drumVolume}
+                        </span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => cycleSlotChord(slotIndex, 1)}
-                      className="text-muted-foreground hover:text-foreground transition-colors text-xs px-1"
-                    >
-                      ›
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Diatonic chords reference */}
-          <div className="space-y-2 border-t border-border pt-4">
-            <p className="text-xs text-muted-foreground">Diatonic Chords</p>
-            <div className="flex flex-wrap gap-2">
-              {chords.map((chord, i) => (
-                <div
-                  key={i}
-                  className="px-3 py-1.5 rounded-md bg-muted/50 text-center"
-                >
-                  <div className="text-xs font-semibold text-foreground">
-                    {getChordLabel(chord)}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
 
-      {mode === 'metronome' && <Metronome bare isPlaying={isPlaying} />}
+                <div className="flex justify-center items-center gap-4 py-1">
+                  {[0, 1, 2, 3].map(i => {
+                    const isActive = isPlaying && quarterBeat === i
+                    const isDownbeat = i === 0
+                    return (
+                      <motion.div
+                        key={i}
+                        animate={
+                          isActive
+                            ? { scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }
+                            : { scale: 1, opacity: 0.2 }
+                        }
+                        transition={{
+                          duration: (60 / bpm) * 0.7,
+                          ease: 'easeOut',
+                        }}
+                        className={cn(
+                          'rounded-full',
+                          isActive
+                            ? isDownbeat
+                              ? 'w-5 h-5 bg-accent-orange shadow-lg shadow-accent-orange/50'
+                              : 'w-5 h-5 bg-accent-teal shadow-lg shadow-accent-teal/50'
+                            : 'w-4 h-4 bg-muted-foreground/30'
+                        )}
+                      />
+                    )
+                  })}
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Loop (4 bars)</p>
+                  <div className="flex flex-wrap gap-3">
+                    {progressionIndices.map((chordIdx, slotIndex) => {
+                      const chord =
+                        chords[Math.min(chordIdx, chords.length - 1)]
+                      const isActive = isPlaying && currentBeat === slotIndex
+                      return (
+                        <div
+                          key={slotIndex}
+                          className={cn(
+                            'flex items-center gap-1 px-3 py-2 rounded-lg border transition-all',
+                            isActive
+                              ? 'bg-accent-orange/20 border-accent-orange text-accent-orange'
+                              : 'bg-muted/30 border-border text-foreground'
+                          )}
+                        >
+                          <button
+                            onClick={() => cycleSlotChord(slotIndex, -1)}
+                            className="text-muted-foreground hover:text-foreground transition-colors text-xs px-1"
+                          >
+                            ‹
+                          </button>
+                          <div className="text-center min-w-[48px]">
+                            <div className="text-sm font-bold">
+                              {getChordLabel(chord)}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => cycleSlotChord(slotIndex, 1)}
+                            className="text-muted-foreground hover:text-foreground transition-colors text-xs px-1"
+                          >
+                            ›
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-2 border-t border-border pt-4">
+                  <p className="text-xs text-muted-foreground">
+                    Diatonic Chords
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {chords.map((chord, i) => (
+                      <div
+                        key={i}
+                        className="px-3 py-1.5 rounded-md bg-muted/50 text-center"
+                      >
+                        <div className="text-xs font-semibold text-foreground">
+                          {getChordLabel(chord)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {mode === 'metronome' && <Metronome bare isPlaying={isPlaying} />}
           </motion.div>
         )}
       </AnimatePresence>

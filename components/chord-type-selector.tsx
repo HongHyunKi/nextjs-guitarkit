@@ -11,7 +11,12 @@ interface ChordTypeSelectorProps {
 
 const CHORD_ITEMS = (Object.keys(CHORD_LABELS) as ChordType[]).map(value => ({
   value,
-  label: value === 'major' ? 'Major' : value === 'minor' ? 'm (minor)' : CHORD_LABELS[value],
+  label:
+    value === 'major'
+      ? 'Major'
+      : value === 'minor'
+        ? 'm (minor)'
+        : CHORD_LABELS[value],
 }))
 
 export function ChordTypeSelector({

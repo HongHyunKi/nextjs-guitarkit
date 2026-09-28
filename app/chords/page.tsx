@@ -29,7 +29,6 @@ export default function Page() {
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <Link
             href="/"
@@ -52,7 +51,6 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Controls */}
         <div className="p-6 bg-card border border-border rounded-xl space-y-6">
           <div className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -84,12 +82,14 @@ export default function Page() {
               <label className="text-sm font-medium text-muted-foreground mb-2 block">
                 Guitar Tone
               </label>
-              <GuitarToneToggle tone={guitarTone} onToneChange={setGuitarTone} />
+              <GuitarToneToggle
+                tone={guitarTone}
+                onToneChange={setGuitarTone}
+              />
             </div>
           </div>
         </div>
 
-        {/* Result */}
         <div className="p-6 bg-card border border-border rounded-xl space-y-6">
           <div className="flex flex-wrap items-center gap-4">
             <h2 className="text-xl font-bold">{chordName}</h2>
@@ -126,7 +126,6 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Back link */}
         <Link
           href="/"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"

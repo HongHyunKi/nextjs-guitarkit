@@ -1,9 +1,10 @@
 import { CHROMATIC_NOTES } from './music-utils'
 
-// 자기상관(autocorrelation) 기반 피치 검출 — 시간 도메인 파형에서 기본 주파수를 찾는다.
-// FFT보다 노이즈에 강하고, 기타 음역대(80Hz~1.3kHz)에서 정확도가 높아 튜너에 적합하다.
-// 무음/노이즈 구간은 -1을 반환한다.
-export function autoCorrelate(buffer: Float32Array, sampleRate: number): number {
+// 자기상관으로 기본 주파수를 추정하며 감지 실패 시 -1을 반환한다.
+export function autoCorrelate(
+  buffer: Float32Array,
+  sampleRate: number
+): number {
   const SIZE = buffer.length
 
   // RMS로 무음 판별 — 너무 조용하면 피치 추정을 시도하지 않는다.
@@ -14,8 +15,7 @@ export function autoCorrelate(buffer: Float32Array, sampleRate: number): number 
   rms = Math.sqrt(rms / SIZE)
   if (rms < 0.01) return -1
 
-  // 기타 최저음(E2 ≈ 82Hz)보다 여유 있게 낮은 40Hz까지 커버하는 lag 범위로 제한해
-  // 불필요한 연산을 줄인다.
+  // 40Hz까지 탐색해 저음역을 확보하고 연산량을 제한한다.
   const minFreq = 40
   const maxLagBound = Math.min(SIZE - 1, Math.floor(sampleRate / minFreq))
 
@@ -84,10 +84,10 @@ export function noteToFrequency(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12)
 }
 
-// 감지된 주파수가 목표 주파수 대비 몇 cents 벗어났는지 계산한다.
-// frequencyToNote의 cents(가장 가까운 반음 기준)와 달리, 완전히 다른 음을 연주해도
-// 그 값이 얼마나 크든 상관없이 "선택한 줄" 기준으로 편차를 알려준다 — 줄 선택 후
-// 튜닝하는 초보자 플로우에 필요한 계산.
-export function centsFromTarget(frequency: number, targetFrequency: number): number {
+// 가장 가까운 음이 아닌 선택한 줄의 목표음과 센트 차이를 구한다.
+export function centsFromTarget(
+  frequency: number,
+  targetFrequency: number
+): number {
   return Math.round(1200 * Math.log2(frequency / targetFrequency))
 }

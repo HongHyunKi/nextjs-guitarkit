@@ -1,18 +1,12 @@
 import {
   getScaleNotes,
   getNoteIndex,
-  isScaleFlat,
   ScaleType,
   SCALE_CHARACTER,
-  CHROMATIC_NOTES,
 } from '@/lib/music-utils'
 
 export type ChordQuality =
-  | 'major'
-  | 'minor'
-  | 'diminished'
-  | 'augmented'
-  | 'dominant7'
+  'major' | 'minor' | 'diminished' | 'augmented' | 'dominant7'
 export type BackingStyle = 'rock' | 'blues' | 'jazz'
 
 export interface Chord {
@@ -29,17 +23,7 @@ export interface DiatonicChords {
   rootNote: string
 }
 
-const CHORD_INTERVALS: Record<ChordQuality, number[]> = {
-  major: [0, 4, 7],
-  minor: [0, 3, 7],
-  diminished: [0, 3, 6],
-  augmented: [0, 4, 8],
-  dominant7: [0, 4, 7, 10],
-}
-
-// Pentatonic scales skip degrees, so triads can't be derived by stacking
-// scale-degree thirds the way 7-note (diatonic) scales can — kept as a
-// curated approximation.
+// 펜타토닉 반주는 음계 밖 구성음을 포함한 선별 화음이다.
 const MAJOR_PENT_QUALITIES: ChordQuality[] = [
   'major',
   'minor',
@@ -63,8 +47,7 @@ const PENTATONIC_TYPES = new Set<ScaleType>([
   'minor-pentatonic',
 ])
 
-// Reference degree intervals (major scale) used only to label accidentals —
-// e.g. natural minor's b3 is expressed as "IIIb" relative to this baseline.
+// 로마 숫자의 임시표는 장음계 간격을 기준으로 붙인다.
 const MAJOR_REFERENCE_INTERVALS = [0, 2, 4, 5, 7, 9, 11]
 const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
 const QUALITY_SUFFIX: Record<ChordQuality, string> = {
@@ -75,7 +58,10 @@ const QUALITY_SUFFIX: Record<ChordQuality, string> = {
   dominant7: '7',
 }
 
-function tripleQuality(thirdInterval: number, fifthInterval: number): ChordQuality {
+function tripleQuality(
+  thirdInterval: number,
+  fifthInterval: number
+): ChordQuality {
   if (thirdInterval === 4 && fifthInterval === 7) return 'major'
   if (thirdInterval === 3 && fifthInterval === 7) return 'minor'
   if (thirdInterval === 3 && fifthInterval === 6) return 'diminished'
@@ -83,9 +69,7 @@ function tripleQuality(thirdInterval: number, fifthInterval: number): ChordQuali
   return thirdInterval >= 4 ? 'major' : 'minor'
 }
 
-// Derives diatonic triads for any 7-note scale by stacking scale-degree
-// thirds (root, +2 degrees, +4 degrees) — works uniformly for major, minor,
-// the modes, and harmonic/melodic minor without a hardcoded table per scale.
+// 7음 음계에서 한 음씩 건너뛰어 3화음을 만든다.
 function buildDiatonicTriads(
   scaleNotes: string[]
 ): { quality: ChordQuality; numeral: string }[] {
@@ -109,35 +93,8 @@ function buildDiatonicTriads(
   })
 }
 
-const NOTES_FLAT = [
-  'C',
-  'Db',
-  'D',
-  'Eb',
-  'E',
-  'F',
-  'Gb',
-  'G',
-  'Ab',
-  'A',
-  'Bb',
-  'B',
-]
-
 export function noteToMidi(note: string, octave: number): number {
   return (octave + 1) * 12 + getNoteIndex(note)
-}
-
-function buildChordNotes(
-  root: string,
-  quality: ChordQuality,
-  useFlat: boolean
-): string[] {
-  const rootIdx = getNoteIndex(root)
-  const ref = useFlat ? NOTES_FLAT : CHROMATIC_NOTES
-  return CHORD_INTERVALS[quality].map(
-    interval => ref[(rootIdx + interval) % 12]
-  )
 }
 
 function buildMidiNotes(notes: string[]): number[] {
@@ -157,7 +114,6 @@ export function getDiatonicChords(
   scaleType: ScaleType
 ): DiatonicChords {
   const scaleNotes = getScaleNotes(rootNote, scaleType)
-  const useFlat = isScaleFlat(rootNote, scaleType)
 
   let diatonics: { quality: ChordQuality; numeral: string }[]
   if (scaleType === 'major-pentatonic') {
@@ -176,7 +132,15 @@ export function getDiatonicChords(
 
   const chords: Chord[] = scaleNotes.map((note, i) => {
     const { quality, numeral } = diatonics[i]
-    const notes = buildChordNotes(note, quality, useFlat)
+    const notes =
+      scaleNotes.length === 7
+        ? [note, scaleNotes[(i + 2) % 7], scaleNotes[(i + 4) % 7]]
+        : [0, 2, 4].map(
+            degree =>
+              getScaleNotes(note, quality === 'minor' ? 'minor' : 'major')[
+                degree
+              ]
+          )
     return {
       root: note,
       quality,
@@ -209,7 +173,7 @@ export function getStyleProgression(
 
   if (isPent) {
     return isMinor
-      ? [0, 2, 3, 4] // Im - IIIb - IVm - Vm
+      ? [0, 2, 3, 4] // Im - IVm - Vm - VIIb
       : [0, 3, 4, 3] // I - V - VIm - V
   }
 

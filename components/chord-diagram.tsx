@@ -31,8 +31,7 @@ export function ChordDiagram({ voicing, rootNote, onPlay }: ChordDiagramProps) {
   const height = TOP + FRET_GAP * NUM_ROWS + 12
 
   const stringX = (i: number) => LEFT + i * STRING_GAP
-  const fretY = (fret: number) =>
-    TOP + (fret - windowStart + 0.5) * FRET_GAP
+  const fretY = (fret: number) => TOP + (fret - windowStart + 0.5) * FRET_GAP
 
   // 저음→고음 인덱스 i의 음이 루트인지 (도트 색상용)
   const isRootDot = (i: number, fret: number) => {

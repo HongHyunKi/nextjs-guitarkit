@@ -4,21 +4,15 @@ import { useEffect, useRef, useState } from 'react'
 import { Settings2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { NotationToggle } from '@/components/notation-toggle'
 import { GuitarToneToggle } from '@/components/guitar-tone-toggle'
 import { GuitarTone } from '@/components/fretboard'
-import { NotationType } from '@/lib/music-utils'
 
 interface ViewSettingsPopoverProps {
-  notationType: NotationType
-  onNotationTypeChange: (type: NotationType) => void
   guitarTone: GuitarTone
   onGuitarToneChange: (tone: GuitarTone) => void
 }
 
 export function ViewSettingsPopover({
-  notationType,
-  onNotationTypeChange,
   guitarTone,
   onGuitarToneChange,
 }: ViewSettingsPopoverProps) {
@@ -74,16 +68,6 @@ export function ViewSettingsPopover({
             >
               <X className="w-4 h-4" />
             </button>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-muted-foreground mb-2 block">
-              Notation
-            </label>
-            <NotationToggle
-              type={notationType}
-              onTypeChange={onNotationTypeChange}
-            />
           </div>
 
           <div>

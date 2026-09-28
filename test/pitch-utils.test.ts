@@ -5,8 +5,6 @@ import {
   centsFromTarget,
 } from '@/lib/pitch-utils'
 
-// ─── frequencyToNote ─────────────────────────────────────────────────────────
-
 describe('frequencyToNote', () => {
   it('identifies A4 = 440Hz exactly with 0 cents', () => {
     const result = frequencyToNote(440)
@@ -33,11 +31,11 @@ describe('frequencyToNote', () => {
   })
 
   it('reports positive cents for sharp (above pitch) and negative for flat (below pitch)', () => {
-    const sharp = frequencyToNote(445) // slightly above A4
+    const sharp = frequencyToNote(445) // A4보다 조금 높음
     expect(sharp.note).toBe('A')
     expect(sharp.cents).toBeGreaterThan(0)
 
-    const flat = frequencyToNote(435) // slightly below A4
+    const flat = frequencyToNote(435) // A4보다 조금 낮음
     expect(flat.note).toBe('A')
     expect(flat.cents).toBeLessThan(0)
   })
@@ -48,8 +46,6 @@ describe('frequencyToNote', () => {
     expect(result.octave).toBe(5)
   })
 })
-
-// ─── noteToFrequency / centsFromTarget ───────────────────────────────────────
 
 describe('noteToFrequency', () => {
   it('converts MIDI 69 (A4) to 440Hz', () => {
@@ -72,8 +68,7 @@ describe('centsFromTarget', () => {
   })
 
   it('is independent of frequencyToNote — reports large deviation for an unrelated pitch', () => {
-    // Playing A2 (110Hz) while targeting E4 (329.63Hz) should read as very flat,
-    // not "snap" to the nearest chromatic note the way frequencyToNote does.
+    // A2를 쳐도 선택한 E4 기준의 낮은 음으로 판정한다.
     const cents = centsFromTarget(110, 329.63)
     expect(cents).toBeLessThan(-1000)
   })
@@ -89,9 +84,11 @@ describe('centsFromTarget', () => {
   })
 })
 
-// ─── autoCorrelate ───────────────────────────────────────────────────────────
-
-function generateSineWave(frequency: number, sampleRate: number, size: number): Float32Array {
+function generateSineWave(
+  frequency: number,
+  sampleRate: number,
+  size: number
+): Float32Array {
   const buffer = new Float32Array(size)
   for (let i = 0; i < size; i++) {
     buffer[i] = Math.sin((2 * Math.PI * frequency * i) / sampleRate)
@@ -114,12 +111,14 @@ describe('autoCorrelate', () => {
   })
 
   it('returns -1 for silence', () => {
-    const buffer = new Float32Array(size) // all zeros
+    const buffer = new Float32Array(size) // 무음 파형
     expect(autoCorrelate(buffer, sampleRate)).toBe(-1)
   })
 
   it('returns -1 for low-amplitude noise below the RMS threshold', () => {
-    const buffer = new Float32Array(size).map(() => (Math.random() - 0.5) * 0.001)
+    const buffer = new Float32Array(size).map(
+      () => (Math.random() - 0.5) * 0.001
+    )
     expect(autoCorrelate(buffer, sampleRate)).toBe(-1)
   })
 })

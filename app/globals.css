@@ -83,9 +83,8 @@
 }
 
 @theme inline {
-  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -136,7 +135,7 @@
     @apply bg-background text-foreground;
   }
 
-  /* Custom scrollbar styles */
+  /* 지판 스크롤바 */
   .custom-scrollbar::-webkit-scrollbar {
     height: 8px;
   }
@@ -162,10 +161,10 @@
       color-mix(in oklch, var(--muted) 20%, transparent);
   }
 
-  /* 프렛보드 칼럼: 모바일/태블릿은 실제 픽셀폭 고정 + 가로 스크롤,
-     xl 이상(데스크톱)은 기존처럼 컨테이너 폭에 비율대로 꽉 채움 */
+  /* 모바일은 고정폭, 데스크톱은 비율에 맞춰 지판을 채운다. */
   .fret-col {
     flex: 0 0 var(--fret-w);
+    min-width: 52px;
   }
 
   @media (min-width: 80rem) {
