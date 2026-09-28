@@ -147,7 +147,7 @@ export function useLickPlayer(
     drumGainRef.current?.gain.rampTo(drumVolume / 100, 0.05)
   }, [drumVolume, attempt])
 
-  // Changing a lick or tempo starts a fresh count-in on the next Play.
+  // 설정 변경 후 재생은 준비 마디부터 시작한다.
   useEffect(() => {
     stop()
   }, [lick, bpm, drumPattern, clickEnabled, root, stop])
@@ -194,7 +194,7 @@ export function useLickPlayer(
           source.buffer = samplerRef.current.get(sample).get() ?? null
           const duration = note.duration * eighthSeconds * 0.95
           const base = midi - Tone.Frequency(sample).toMidi()
-          // ponytail: resampling approximates articulation; recorded technique samples add string noise and timbral realism.
+          // ponytail: 주법은 재생 속도로 근사한다. 마찰음은 별도 녹음이 필요하다.
           for (const [fraction, semitones] of lickPitchCurve(note)) {
             const rate = Math.pow(2, (base + semitones) / 12)
             if (fraction === 0) source.playbackRate.setValueAtTime(rate, time)

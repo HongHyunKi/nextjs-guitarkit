@@ -85,7 +85,6 @@ export default function Home() {
           <ThemeToggle />
         </div>
         <div className="max-w-7xl mx-auto flex flex-col items-center justify-center min-h-[70vh] space-y-12 py-16">
-          {/* Hero */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -103,7 +102,6 @@ export default function Home() {
             </p>
           </motion.div>
 
-          {/* Feature cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-4xl">
             {FEATURES.map((feature, i) => (
               <motion.div

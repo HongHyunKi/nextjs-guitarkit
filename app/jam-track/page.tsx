@@ -16,7 +16,6 @@ export default function Page() {
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <Link
             href="/"
@@ -37,7 +36,6 @@ export default function Page() {
           <ThemeToggle />
         </div>
 
-        {/* Root + Scale controls */}
         <div className="p-4 md:p-6 bg-card border border-border rounded-xl space-y-5">
           <div>
             <label className="text-sm font-medium text-muted-foreground mb-2 block">
@@ -61,7 +59,6 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Backing Track Player */}
         <BackingTrackPlayer rootNote={rootNote} scaleType={scaleType} />
       </div>
     </div>

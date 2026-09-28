@@ -5,12 +5,9 @@ import {
   getPitchFromFret,
   getScaleNotes,
   isScaleFlat,
-  CHROMATIC_NOTES,
   STANDARD_TUNING_MIDI,
   type ScaleType,
 } from '@/lib/music-utils'
-
-// ─── getNoteIndex ────────────────────────────────────────────────────────────
 
 it('spells altered scales by degree, including mixed and double accidentals', () => {
   expect(getScaleNotes('D', 'harmonic-minor')).toEqual([
@@ -68,7 +65,7 @@ it('spells altered scales by degree, including mixed and double accidentals', ()
   expect(getScaleNotes('invalid', 'major')).toEqual([])
   expect(noteToFixedSolfege('E#')).toBe('미#')
   expect(noteToFixedSolfege('Bbb')).toBe('시♭♭')
-  // B# on the B string, first fret is C4, never B#4/C5 in the audio path.
+  // B줄 1프렛은 B# 표기와 무관하게 C4로 재생한다.
   expect(getPitchFromFret(1, 1)).toBe('C4')
 })
 
@@ -107,10 +104,8 @@ describe('getNoteIndex', () => {
   })
 })
 
-// ─── getNoteFromFret ─────────────────────────────────────────────────────────
-
 describe('getNoteFromFret', () => {
-  // Standard tuning open strings: E4 B3 G3 D3 A2 E2
+  // 표준 튜닝 개방현: E4 B3 G3 D3 A2 E2
   it('6th string (E) fret 5 → A', () => {
     expect(getNoteFromFret('E', 5)).toBe('A')
   })
@@ -135,15 +130,13 @@ describe('getNoteFromFret', () => {
   })
 
   it('useFlat=true returns flat notation', () => {
-    // E + 1 fret = F, no flat needed
+    // E에서 1프렛 위는 F다.
     expect(getNoteFromFret('E', 1, true)).toBe('F')
-    // E + 2 frets = F#/Gb
+    // E에서 2프렛 위는 F#/Gb다.
     expect(getNoteFromFret('E', 2, true)).toBe('Gb')
     expect(getNoteFromFret('E', 2, false)).toBe('F#')
   })
 })
-
-// ─── getScaleNotes ───────────────────────────────────────────────────────────
 
 const ALL_ROOTS = [
   'C',
@@ -459,7 +452,7 @@ describe('getScaleNotes', () => {
         it(`${sharp} and ${flat} ${scaleType} are enharmonically equivalent`, () => {
           const sharpNotes = getScaleNotes(sharp, scaleType)
           const flatNotes = getScaleNotes(flat, scaleType)
-          // Same chromatic content, different spelling
+          // 음높이는 같고 표기만 다르다.
           expect(sharpNotes.map(getNoteIndex)).toEqual(
             flatNotes.map(getNoteIndex)
           )
@@ -468,8 +461,6 @@ describe('getScaleNotes', () => {
     })
   })
 })
-
-// ─── isScaleFlat ─────────────────────────────────────────────────────────────
 
 describe('isScaleFlat', () => {
   it('flat root → true', () => {
@@ -503,8 +494,6 @@ describe('isScaleFlat', () => {
   })
 })
 
-// ─── getPitchFromFret ────────────────────────────────────────────────────────
-
 describe('getPitchFromFret', () => {
   it('open strings match standard tuning (E4 B3 G3 D3 A2 E2)', () => {
     expect(getPitchFromFret(0, 0)).toBe('E4')
@@ -516,7 +505,7 @@ describe('getPitchFromFret', () => {
   })
 
   it('same fret on different strings yields different octaves', () => {
-    // 3rd fret: low E string = G2, high E string = G4
+    // 3프렛: 저음 E줄은 G2, 고음 E줄은 G4다.
     expect(getPitchFromFret(5, 3)).toBe('G2')
     expect(getPitchFromFret(0, 3)).toBe('G4')
   })
@@ -528,16 +517,16 @@ describe('getPitchFromFret', () => {
   })
 
   it('octave increments at C, not at the root', () => {
-    // A2 string: fret 2 = B2, fret 3 = C3 (octave boundary)
+    // A2줄의 2·3프렛은 옥타브 경계인 B2·C3다.
     expect(getPitchFromFret(4, 2)).toBe('B2')
     expect(getPitchFromFret(4, 3)).toBe('C3')
   })
 
   it('flat spelling when useFlat is true', () => {
-    // low E string fret 2 = F#2 / Gb2
+    // 저음 E줄 2프렛: F#2/Gb2
     expect(getPitchFromFret(5, 2, false)).toBe('F#2')
     expect(getPitchFromFret(5, 2, true)).toBe('Gb2')
-    // A string fret 1 = A#2 / Bb2
+    // A줄 1프렛: A#2/Bb2
     expect(getPitchFromFret(4, 1, false)).toBe('A#2')
     expect(getPitchFromFret(4, 1, true)).toBe('Bb2')
   })

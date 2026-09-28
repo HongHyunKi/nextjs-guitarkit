@@ -5,8 +5,7 @@ import * as Tone from 'tone'
 
 export type GuitarTone = 'electric' | 'acoustic'
 
-// 실제 기타 녹음 샘플 (tonejs-instruments, CC-BY 3.0 — README 출처 표기 참조)
-// Sampler가 샘플 사이 음정은 리피칭으로 채운다
+// 기타 녹음 출처와 CC-BY 3.0 표기는 README를 참고한다.
 export const GUITAR_SAMPLE_URLS: Record<GuitarTone, Record<string, string>> = {
   electric: {
     E2: 'E2.mp3',
@@ -45,8 +44,7 @@ export const GUITAR_SAMPLE_URLS: Record<GuitarTone, Record<string, string>> = {
   },
 }
 
-// 기타 샘플러 훅: 단음 재생과 스트럼(밀리초 간격 아르페지오)을 지원한다.
-// 샘플 로드 전 클릭은 무시된다 (로컬 샘플이라 로드가 빠름).
+// 로딩 후 단음·스트럼을 재생한다.
 export function useGuitarSampler(guitarTone: GuitarTone) {
   const samplerRef = useRef<Tone.Sampler | null>(null)
 

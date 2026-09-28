@@ -1,6 +1,6 @@
 import { getPitchFromFret } from './music-utils'
 
-// E uses the 12th-position box: a slide cannot start from an open string.
+// 개방현 슬라이드를 피하도록 E키는 12프렛에서 시작한다.
 export const LICK_KEYS = { A: 0, C: 3, D: 5, E: 7, G: -2 } as const
 export type LickKey = keyof typeof LICK_KEYS
 export function transposeLick(lick: Lick, key: LickKey): Lick {
@@ -18,8 +18,8 @@ export function transposeLick(lick: Lick, key: LickKey): Lick {
   }
 }
 
-// Original one-bar exercises, not transcriptions of recorded songs.
-// 4/4, straight eighths: eight ticks per bar; stringIndex 0 is the high E.
+// 특정 곡을 채보하지 않은 창작 연습 구절
+// 4/4박자, 한 마디는 8틱. 줄 인덱스 0은 고음 E다.
 export type LickNote = {
   tick: number
   duration: number
@@ -92,7 +92,7 @@ export function lickGroup(lick: Pick<Lick, 'notes'>) {
   return bend && slide ? '혼합' : bend ? '벤딩' : slide ? '슬라이드' : '기본'
 }
 
-// Each tuple is [tick, length in eighths, string index, fret, technique?, target].
+// 순서: 시작 틱, 길이(8분음표), 줄, 프렛, 주법, 목표 프렛
 type Phrase = [
   number,
   number,
@@ -725,7 +725,7 @@ export function lickTab(note: LickNote) {
   return String(note.fret)
 }
 
-// Normalized time and semitone offsets, shared by audio and position guidance.
+// 소리와 지판이 공유하는 상대 시간·반음 변화량
 export function lickPitchCurve(note: LickNote): [number, number][] {
   const delta = (note.targetFret ?? note.fret) - note.fret
   if (note.technique === 'slide')
@@ -787,7 +787,7 @@ export function getLickFrame(lick: Lick, step: number) {
     beat: Math.floor(tick / 2) + 1,
     round: countIn ? 0 : Math.floor((step - 8) / 16) + 1,
     note,
-    // The response bar has visual guidance but NEVER schedules the lead guitar.
+    // 내 차례에는 지판만 안내하고 기타는 재생하지 않는다.
     lead:
       phase === 'listen'
         ? (lick.notes.find(n => n.tick === tick) ?? null)

@@ -13,7 +13,7 @@ import {
   supportsCAGED,
 } from '@/lib/caged-utils'
 
-// Transcribed absolute frets, low E → high E, from the five diagrams per source.
+// 출처의 5개 운지를 저음 E부터 고음 E 순서로 옮겼다.
 // https://appliedguitartheory.com/lessons/major-scale/ (G major positions 1–5 = E,D,C,A,G)
 const G_MAJOR: Record<CAGEDShape, number[][]> = {
   E: [
@@ -118,7 +118,7 @@ describe('reference CAGED fingerings, all roots and 0–24 frets', () => {
             for (let fret = 0; fret <= 24; fret++) {
               const pitch =
                 (STANDARD_TUNING_MIDI[stringIndex] + fret - shift + 12) % 12
-              const pentDegree = [7, 9, 11, 2, 4].includes(pitch) // G major pentatonic, independently specified
+              const pentDegree = [7, 9, 11, 2, 4].includes(pitch) // 별도로 명시한 G 메이저 펜타토닉 구성음
               const expected =
                 reference[shape][5 - stringIndex].some(
                   f => (fret - shift - f) % 12 === 0

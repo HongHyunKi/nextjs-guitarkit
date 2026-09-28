@@ -20,9 +20,8 @@ export function getBarreFret(rootIndex: number, shape: CAGEDShape): number {
   return (rootIndex - SHAPE_BASE_NOTE[shape] + 12) % 12
 }
 
-// Low E (6th string) → high E (1st string), offsets from the chord's barre.
-// One documented fingering convention, not the only valid CAGED fingering.
-// References and absolute-fret fixtures: docs/caged-system-spec.md.
+// 저음 E부터 고음 E 순서의 바레 기준 상대 프렛이다.
+// 대표 운지와 출처는 docs/caged-system-spec.md를 따른다.
 const MAJOR_PATTERNS: Record<CAGEDShape, number[][]> = {
   C: [
     [0, 1, 3],
@@ -138,7 +137,7 @@ export function isInCAGEDShape(
   const inPattern = patterns[shape][5 - stringIndex].some(
     offset => (fret - barre - offset) % 12 === 0
   )
-  // Major pentatonic is the same shape with degrees 4 and 7 removed.
+  // 메이저 펜타토닉은 같은 운지에서 4·7도를 뺀다.
   return (
     inPattern &&
     getScaleNotes(rootNote, scaleType).some(

@@ -38,7 +38,7 @@ export function useBpmControl({
         setBpmInput(String(saved))
       }
     } catch {
-      /* Storage may be unavailable. */
+      // 저장소를 못 쓰면 기본값을 유지한다.
     }
     setRestored(true)
   }, [storageKey, initialBpm, min, max])
@@ -48,7 +48,7 @@ export function useBpmControl({
     try {
       localStorage.setItem(storageKey, String(bpm))
     } catch {
-      /* Keep controls usable. */
+      // 저장 실패와 무관하게 조작을 유지한다.
     }
   }, [bpm, restored, storageKey])
 

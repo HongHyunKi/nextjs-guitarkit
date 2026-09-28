@@ -3,8 +3,8 @@ import { LICKS } from '@/lib/licks'
 import * as Tone from 'tone'
 
 const mockEffects: (() => void | (() => void))[] = []
-const mockVoices: any[] = []
-const mockGains: any[] = []
+const mockVoices: { triggerAttackRelease: jest.Mock }[] = []
+const mockGains: { gain: { setValueAtTime: jest.Mock } }[] = []
 let mockTick: (time: number) => void
 let mockStateCalls = 0
 jest.mock('react', () => ({

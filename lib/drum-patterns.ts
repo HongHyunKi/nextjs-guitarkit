@@ -10,7 +10,7 @@ export const LICK_DRUM_LABELS: Record<LickDrums, string> = {
   '16beat': '록 16비트',
 }
 
-// Schedule within an eighth-note lick tick; 16-beat hats also fall halfway through.
+// 8분음표 틱 안에 예약하며 16비트 하이햇은 중간에도 친다.
 export function getLickDrumSteps(
   pattern: LickDrums,
   tick: number,
@@ -44,35 +44,35 @@ export const DRUM_PATTERNS: Record<
 > = {
   rock: {
     '4beat': [
-      { kick: true, snare: false, hihat: true }, // beat 1
-      { kick: false, snare: true, hihat: true }, // beat 2
-      { kick: true, snare: false, hihat: true }, // beat 3
-      { kick: false, snare: true, hihat: true }, // beat 4
+      { kick: true, snare: false, hihat: true }, // 1박
+      { kick: false, snare: true, hihat: true }, // 2박
+      { kick: true, snare: false, hihat: true }, // 3박
+      { kick: false, snare: true, hihat: true }, // 4박
     ],
     '8beat': [
-      { kick: true, snare: false, hihat: true }, // 1 down
-      { kick: false, snare: false, hihat: true }, // 1 up
-      { kick: false, snare: true, hihat: true }, // 2 down
-      { kick: false, snare: false, hihat: true }, // 2 up
-      { kick: true, snare: false, hihat: true }, // 3 down
-      { kick: false, snare: false, hihat: true }, // 3 up
-      { kick: false, snare: true, hihat: true }, // 4 down
-      { kick: false, snare: false, hihat: true }, // 4 up
+      { kick: true, snare: false, hihat: true }, // 1박
+      { kick: false, snare: false, hihat: true }, // 1박 뒤
+      { kick: false, snare: true, hihat: true }, // 2박
+      { kick: false, snare: false, hihat: true }, // 2박 뒤
+      { kick: true, snare: false, hihat: true }, // 3박
+      { kick: false, snare: false, hihat: true }, // 3박 뒤
+      { kick: false, snare: true, hihat: true }, // 4박
+      { kick: false, snare: false, hihat: true }, // 4박 뒤
     ],
     '16beat': [
-      { kick: true, snare: false, hihat: true }, // beat 1
+      { kick: true, snare: false, hihat: true }, // 1박
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true }, // beat 2
+      { kick: false, snare: true, hihat: true }, // 2박
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
-      { kick: true, snare: false, hihat: true }, // beat 3
+      { kick: true, snare: false, hihat: true }, // 3박
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true }, // beat 4
+      { kick: false, snare: true, hihat: true }, // 4박
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
@@ -86,31 +86,31 @@ export const DRUM_PATTERNS: Record<
       { kick: false, snare: true, hihat: false },
     ],
     '8beat': [
-      { kick: true, snare: false, hihat: true }, // 1 down (swing 적용)
-      { kick: false, snare: false, hihat: true }, // 1 up
-      { kick: false, snare: true, hihat: false }, // 2 down
-      { kick: false, snare: false, hihat: true }, // 2 up (shuffle)
-      { kick: true, snare: false, hihat: true }, // 3 down
-      { kick: false, snare: false, hihat: true }, // 3 up
-      { kick: false, snare: true, hihat: false }, // 4 down
-      { kick: false, snare: false, hihat: true }, // 4 up (shuffle)
+      { kick: true, snare: false, hihat: true }, // 1박
+      { kick: false, snare: false, hihat: true }, // 1박 뒤
+      { kick: false, snare: true, hihat: false }, // 2박
+      { kick: false, snare: false, hihat: true }, // 2박 뒤
+      { kick: true, snare: false, hihat: true }, // 3박
+      { kick: false, snare: false, hihat: true }, // 3박 뒤
+      { kick: false, snare: true, hihat: false }, // 4박
+      { kick: false, snare: false, hihat: true }, // 4박 뒤
     ],
     '16beat': [
-      { kick: true, snare: false, hihat: true }, // beat 1
+      { kick: true, snare: false, hihat: true }, // 1박
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // shuffle accent
-      { kick: false, snare: true, hihat: true }, // beat 2
+      { kick: false, snare: false, hihat: true }, // 리듬 강조
+      { kick: false, snare: true, hihat: true }, // 2박
       { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // shuffle accent
+      { kick: false, snare: false, hihat: true }, // 리듬 강조
       { kick: false, snare: false, hihat: true },
-      { kick: true, snare: false, hihat: true }, // beat 3
+      { kick: true, snare: false, hihat: true }, // 3박
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // shuffle accent
-      { kick: false, snare: true, hihat: true }, // beat 4
+      { kick: false, snare: false, hihat: true }, // 리듬 강조
+      { kick: false, snare: true, hihat: true }, // 4박
       { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // shuffle accent
+      { kick: false, snare: false, hihat: true }, // 리듬 강조
       { kick: false, snare: false, hihat: true },
     ],
   },
@@ -123,28 +123,28 @@ export const DRUM_PATTERNS: Record<
     ],
     '8beat': [
       { kick: true, snare: false, hihat: true }, // 1
-      { kick: false, snare: false, hihat: true }, // 1+ (swing)
+      { kick: false, snare: false, hihat: true }, // 1박 뒤 (스윙)
       { kick: false, snare: true, hihat: false }, // 2
-      { kick: false, snare: false, hihat: true }, // 2+ (swing)
+      { kick: false, snare: false, hihat: true }, // 2박 뒤 (스윙)
       { kick: false, snare: false, hihat: true }, // 3
-      { kick: false, snare: false, hihat: true }, // 3+ (swing)
+      { kick: false, snare: false, hihat: true }, // 3박 뒤 (스윙)
       { kick: false, snare: true, hihat: false }, // 4
-      { kick: false, snare: false, hihat: true }, // 4+ (swing)
+      { kick: false, snare: false, hihat: true }, // 4박 뒤 (스윙)
     ],
     '16beat': [
-      { kick: true, snare: false, hihat: true }, // beat 1
+      { kick: true, snare: false, hihat: true }, // 1박
       { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // triplet accent
+      { kick: false, snare: false, hihat: true }, // 리듬 강조
       { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true }, // beat 2
+      { kick: false, snare: true, hihat: true }, // 2박
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // beat 3
+      { kick: false, snare: false, hihat: true }, // 3박
       { kick: false, snare: false, hihat: true },
-      { kick: false, snare: false, hihat: true }, // triplet accent
+      { kick: false, snare: false, hihat: true }, // 리듬 강조
       { kick: false, snare: false, hihat: true },
-      { kick: false, snare: true, hihat: true }, // beat 4
+      { kick: false, snare: true, hihat: true }, // 4박
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },
       { kick: false, snare: false, hihat: true },

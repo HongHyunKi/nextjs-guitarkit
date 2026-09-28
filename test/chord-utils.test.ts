@@ -68,8 +68,6 @@ const ALL_ROOTS = [
 
 const ALL_TYPES = Object.keys(CHORD_LABELS) as ChordType[]
 
-// ─── getChordNotes ───────────────────────────────────────────────────────────
-
 describe('getChordNotes', () => {
   it('returns the correct number of notes for every type', () => {
     ALL_ROOTS.forEach(root => {
@@ -151,8 +149,6 @@ describe('getChordNotes', () => {
     })
   })
 })
-
-// ─── getChordVoicings ────────────────────────────────────────────────────────
 
 const pitchClass = (pitch: string) => getNoteIndex(pitch.replace(/-?\d+$/, ''))
 

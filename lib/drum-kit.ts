@@ -1,6 +1,6 @@
 import * as Tone from 'tone'
 
-// Shared voices for jam tracks and call-and-response lick practice.
+// 잼 트랙과 릭 연습의 공용 드럼
 export function createDrumKit(output: Tone.ToneAudioNode) {
   const kick = new Tone.MembraneSynth({
     pitchDecay: 0.05,

@@ -96,7 +96,7 @@ export default function Page() {
         parsePracticeSettings(localStorage.getItem(PRACTICE_STORAGE_KEY))
       )
     } catch {
-      /* Use defaults when storage is unavailable. */
+      // 저장소를 못 쓰면 기본값을 유지한다.
     }
     setRestored(true)
   }, [])
@@ -105,7 +105,7 @@ export default function Page() {
     try {
       localStorage.setItem(PRACTICE_STORAGE_KEY, JSON.stringify(settings))
     } catch {
-      /* Keep practice available without storage. */
+      // 저장 실패와 무관하게 연습을 유지한다.
     }
   }, [settings, restored])
 
@@ -122,7 +122,6 @@ export default function Page() {
     <MotionConfig reducedMotion="user">
       <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
-          {/* Header */}
           <div className="flex items-center justify-between">
             <Link
               href="/"
@@ -143,7 +142,7 @@ export default function Page() {
             <ThemeToggle />
           </div>
 
-          {/* Quick Controls — 가장 자주 바꾸는 컨트롤을 프렛보드 바로 위로 */}
+          {/* 자주 쓰는 설정은 지판 위에 둔다. */}
           {quizActive ? (
             <NoteQuiz
               guitarTone={guitarTone}
@@ -318,7 +317,6 @@ export default function Page() {
                 </div>
               </div>
 
-              {/* Fretboard */}
               <div className="relative">
                 <div className="bg-card border border-border rounded-xl">
                   {/* 구성음 범례 — 프렛보드와 한 덩어리로 묶어 참조하기 쉽게 */}
@@ -404,7 +402,6 @@ export default function Page() {
                 </div>
               </div>
 
-              {/* Backing Track Player */}
               <BackingTrackPlayer
                 rootNote={rootNote}
                 scaleType={scaleType}

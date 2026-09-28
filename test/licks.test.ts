@@ -24,7 +24,7 @@ test('original licks are playable, monophonic 4/4 bars in A minor pentatonic', (
       expect(note.stringIndex).toBeLessThan(6)
       expect(note.fret).toBeGreaterThanOrEqual(5)
       expect(note.fret).toBeLessThanOrEqual(10)
-      // Independent pitch classes: A, C, D, E, G.
+      // 독립 기준 음: A C D E G
       expect([9, 0, 2, 4, 7]).toContain(
         (tuning[note.stringIndex] + note.fret) % 12
       )

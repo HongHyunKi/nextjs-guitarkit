@@ -108,7 +108,7 @@ export function Fretboard({
     return note
   }
 
-  // 해당 프렛이 선택된 shape의 활성 범위에 속하는지
+  // 선택한 CAGED 운지에 포함되는지 확인한다.
   const isActiveNote = (stringIndex: number, fret: number): boolean => {
     if (
       displayMode === 'all' ||
@@ -133,7 +133,7 @@ export function Fretboard({
     return 'bg-accent-teal text-background shadow-md shadow-accent-teal/30'
   }
 
-  // 프렛별 세로선 스타일 (12=옥타브, 나머지=일반, 0=너트는 별도 처리)
+  // 12프렛은 옥타브 경계이며 너트는 별도로 표시한다.
   const getFretBorderClass = (fret: number) => {
     if (fret === 0) return ''
     if (fret === 12) return 'border-r-2 border-accent-orange/70'
@@ -146,8 +146,7 @@ export function Fretboard({
     return Math.max(52, Math.round(72 * Math.pow(0.965, fret - 1)))
   }
 
-  // 0프렛(너트)은 항상 고정폭. 나머지는 .fret-col(globals.css)이 브레이크포인트별로
-  // 처리 — 모바일은 고정폭+스크롤, xl 이상은 비율대로 컨테이너를 꽉 채움
+  // 너트는 고정폭이며 나머지 프렛 폭은 .fret-col에서 조절한다.
   const getFretColumnStyle = (fret: number): React.CSSProperties => {
     if (fret === 0) return { width: 52, flexShrink: 0 }
     const w = getFretWidth(fret)
