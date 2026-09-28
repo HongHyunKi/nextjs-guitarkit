@@ -52,8 +52,11 @@ Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Radix UI, Framer 
 
 ## 시작하기
 
+Node.js 22.13 이상(22.x 또는 24 이상)과 pnpm 10을 사용합니다.
+별도 환경 변수는 필요하지 않습니다. 마이크는 HTTPS 또는 localhost에서만 동작합니다.
+
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
@@ -63,11 +66,27 @@ pnpm dev
 pnpm build   # 프로덕션 빌드
 pnpm start   # 프로덕션 서버 실행
 pnpm test    # 테스트 실행
+pnpm lint    # 정적 검사
+pnpm typecheck # 타입 검사
 ```
+
+## 주석 규칙
+
+- 짧은 한국어로 구현 이유·제약·주의점만 설명합니다.
+- 코드와 중복되는 설명, 구획 이름, 임시 버그 번호는 생략합니다.
+- 긴 설명은 `docs/`에 작성합니다. 출처·라이선스·도구 지시문은 보존합니다.
+
+## 공개 전 확인
+
+- 코드 라이선스는 아직 지정하지 않았습니다. 소유자가 선택한 뒤 `LICENSE`를 추가해야 합니다.
+- 음원은 코드와 별도 라이선스를 따릅니다. 아래 크레딧을 유지하세요.
+- 빌드 시 Google Fonts, 반주 재생 시 외부 피아노 샘플을 불러옵니다.
+- 튜너는 마이크 소리를 브라우저 안에서 분석하며 서버로 업로드하지 않습니다.
+- 연습 설정·기록은 로컬 저장소에 보관합니다. 배포 환경에서는 Vercel Analytics를 사용합니다.
 
 ## 문서
 
-- [CLAUDE.md](CLAUDE.md) — 음악 이론 로직, 스케일 카탈로그, 테스트 요구사항
+- [AGENTS.md](AGENTS.md) — 음악 이론 로직, 주석 규칙, 테스트 요구사항
 - [DESIGN.md](DESIGN.md) — 디자인 시스템
 - [PLAN.md](PLAN.md) — 로드맵
 - [docs/caged-system-spec.md](docs/caged-system-spec.md) — CAGED 시스템 아키텍처
@@ -75,3 +94,5 @@ pnpm test    # 테스트 실행
 ## 크레딧
 
 기타 사운드 샘플은 [tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments)(guitar-electric, guitar-acoustic)를 사용했습니다. 라이선스는 [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/), © N. Brosowsky 및 원 샘플 제작자. `public/samples/`에 mp3 일부 포함.
+
+반주 피아노는 Alexander Holm의 Salamander Grand Piano를 [Tone.js 음원 저장소](https://github.com/Tonejs/audio/tree/master/salamander)에서 불러옵니다. [원본 고지](https://github.com/Tonejs/audio/blob/master/salamander/README)에 따라 CC-BY 3.0 출처를 표시합니다.

@@ -248,7 +248,23 @@ These should be tested as a pair.
 
 ## Code Quality Constraints
 
+- 주석은 짧은 한국어로 작성하고 구현 이유·제약·주의점을 설명한다.
+- 코드만 읽어도 알 수 있는 설명, 구획 이름, 임시 버그 번호는 남기지 않는다.
+- 한두 줄을 넘는 설명은 docs로 옮긴다. 음정·단위·인덱스 기준은 보존한다.
+- 출처 URL, 라이선스, 타입 주석, 도구 지시문은 원문을 유지한다.
+- 변경 후 `pnpm lint`, `pnpm typecheck`, `pnpm test --runInBand`, `pnpm build`를 확인한다.
+
 - **No hardcoded note lists for scale output** — always derive from root + intervals
 - **No duplicate spelling logic** — `getScaleNotes` determines scale spelling; `shouldUseFlat` is only the chromatic fallback
 - **String comparison for note matching is fragile** — prefer chromatic index comparison (`getNoteIndex`) when checking scale membership in rendering code
 - **`ScaleType` is the only type for scale identification** — never use raw strings
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
