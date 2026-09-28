@@ -7,8 +7,11 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site'
 import './globals.css'
 
-const _geist = Geist({ subsets: ['latin'] })
-const _geistMono = Geist_Mono({ subsets: ['latin'] })
+const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  variable: '--font-geist-mono',
+})
 
 const TITLE = `${SITE_NAME} | 기타 연습 도구 모음 — 스케일 · 코드사전 · 메트로놈 · 튜너`
 
@@ -33,13 +36,13 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'ko_KR',
     siteName: SITE_NAME,
-    // og:image는 app/opengraph-image.tsx (파일 컨벤션)에서 자동 생성되어 주입됨
+    // 공유 이미지는 opengraph-image.tsx에서 생성한다.
   },
   twitter: {
     card: 'summary_large_image',
     title: TITLE,
     description: SITE_DESCRIPTION,
-    // twitter:image도 opengraph-image.tsx를 재사용함 (별도 twitter-image 미지정 시 기본값)
+    // 트위터도 같은 공유 이미지를 사용한다.
   },
 }
 
@@ -69,7 +72,9 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </head>
-      <body className={`font-sans antialiased`}>
+      <body
+        className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
