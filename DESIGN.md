@@ -18,33 +18,33 @@
 
 라이트 팔레트는 `:root`, 다크 팔레트는 `.dark`에 정의. accent 계열은 라이트에서 더 어둡게(oklch 0.5~0.62) 조정되어 흰 배경 위 대비를 확보한다 — 컴포넌트는 동일한 토큰명만 쓰면 된다.
 
-| 토큰 | 용도 |
-| --- | --- |
-| `background` / `foreground` | 페이지 배경 / 기본 텍스트 |
-| `card` / `border` | 카드 서피스 / 모든 테두리 |
-| `muted` / `muted-foreground` | 컨트롤 트랙 / 보조 텍스트 |
-| `accent-orange` `accent-teal` `accent-blue` `accent-green` | 아래 의미 표 참조 |
-| `destructive` | 에러 전용 |
+| 토큰                                                       | 용도                      |
+| ---------------------------------------------------------- | ------------------------- |
+| `background` / `foreground`                                | 페이지 배경 / 기본 텍스트 |
+| `card` / `border`                                          | 카드 서피스 / 모든 테두리 |
+| `muted` / `muted-foreground`                               | 컨트롤 트랙 / 보조 텍스트 |
+| `accent-orange` `accent-teal` `accent-blue` `accent-green` | 아래 의미 표 참조         |
+| `destructive`                                              | 에러 전용                 |
 
 ### 색상 의미 (semantic 규칙 — 임의 사용 금지)
 
-| 토큰 | 의미 | 사용처 |
-| --- | --- | --- |
-| `accent-orange` | **루트 노트 / 재생 중 강조** | 프렛보드 루트 도트, 루트 선택 pill, 루트 구성음 칩, 다운비트 펄스, 재생 중 버튼 |
-| `accent-teal` | **스케일 / 선택 / 기본 인터랙션** | 스케일 도트·칩, 스케일/CAGED 선택 pill, 슬라이더, Play 버튼, 스크롤바 |
-| `accent-blue` · `accent-green` | **브랜드 전용** | 그라디언트 아이콘 칩(`from-accent-blue via-accent-teal to-accent-green`), 랜딩 기능별 틴트 |
+| 토큰                           | 의미                              | 사용처                                                                                     |
+| ------------------------------ | --------------------------------- | ------------------------------------------------------------------------------------------ |
+| `accent-orange`                | **루트 노트 / 재생 중 강조**      | 프렛보드 루트 도트, 루트 선택 pill, 루트 구성음 칩, 다운비트 펄스, 재생 중 버튼            |
+| `accent-teal`                  | **스케일 / 선택 / 기본 인터랙션** | 스케일 도트·칩, 스케일/CAGED 선택 pill, 슬라이더, Play 버튼, 스크롤바                      |
+| `accent-blue` · `accent-green` | **브랜드 전용**                   | 그라디언트 아이콘 칩(`from-accent-blue via-accent-teal to-accent-green`), 랜딩 기능별 틴트 |
 
 틴트 배지/칩 레시피: `bg-accent-X/15 text-accent-X border-accent-X/30`
 
 ## 3. 타이포그래피
 
-| 레벨 | 클래스 |
-| --- | --- |
-| 페이지 타이틀 | `text-2xl md:text-3xl font-bold` (랜딩 히어로는 `text-3xl md:text-4xl`) |
-| 카드 제목 | `text-lg font-semibold` |
-| 섹션 헤더 | `text-xs font-semibold uppercase tracking-wider text-muted-foreground` |
-| 본문 | `text-sm` (최소) |
-| 라벨·캡션·배지 | `text-xs` (최소) |
+| 레벨           | 클래스                                                                  |
+| -------------- | ----------------------------------------------------------------------- |
+| 페이지 타이틀  | `text-2xl md:text-3xl font-bold` (랜딩 히어로는 `text-3xl md:text-4xl`) |
+| 카드 제목      | `text-lg font-semibold`                                                 |
+| 섹션 헤더      | `text-xs font-semibold uppercase tracking-wider text-muted-foreground`  |
+| 본문           | `text-sm` (최소)                                                        |
+| 라벨·캡션·배지 | `text-xs` (최소)                                                        |
 
 - **사이즈 플로어**: `text-[9px]` `text-[10px]` `text-[11px]` 금지.
   - 유일한 예외: 프렛보드 노트 도트 내부 `text-[11px]` — 고정 크기 데이터 글리프, 반드시 `font-bold` + 솔리드 accent 배경 위에서만.
@@ -109,11 +109,11 @@
 grep -rn "zinc-\|rose-\|rgba(\|#[0-9a-fA-F]\{3,6\}\|text-\[9px\]\|text-\[10px\]\|border-2\|shadow-\[\|textShadow\|tracking-\[0\.2" app components --include="*.tsx"
 ```
 
-| Do | Don't |
-| --- | --- |
-| 토큰 유틸리티 (`bg-accent-teal`) | hex/rgba/oklch 리터럴, `zinc-*` `rose-*` |
-| `text-xs` 이상 | `text-[9~11px]` (프렛보드 도트 예외 제외) |
-| `border` + `rounded-xl/lg/md` | `border-2`, 각진 카드 |
-| `shadow-lg shadow-accent-X/50` | `shadow-[...]`, 인라인 boxShadow/textShadow |
-| `text-muted-foreground` 플로어 | 읽는 텍스트에 `/50` 투명도 |
-| 새 토큰은 globals.css에 먼저 | 컴포넌트에 즉석 색상 |
+| Do                               | Don't                                       |
+| -------------------------------- | ------------------------------------------- |
+| 토큰 유틸리티 (`bg-accent-teal`) | hex/rgba/oklch 리터럴, `zinc-*` `rose-*`    |
+| `text-xs` 이상                   | `text-[9~11px]` (프렛보드 도트 예외 제외)   |
+| `border` + `rounded-xl/lg/md`    | `border-2`, 각진 카드                       |
+| `shadow-lg shadow-accent-X/50`   | `shadow-[...]`, 인라인 boxShadow/textShadow |
+| `text-muted-foreground` 플로어   | 읽는 텍스트에 `/50` 투명도                  |
+| 새 토큰은 globals.css에 먼저     | 컴포넌트에 즉석 색상                        |

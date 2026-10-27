@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { ToolAnswer } from '@/components/page-faq'
+import { getToolPage } from '@/lib/seo'
 import { MotionConfig } from 'framer-motion'
 import { Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -116,6 +118,7 @@ export default function LickPracticePage() {
               <ThemeToggle />
             </div>
           </header>
+          <ToolAnswer text={getToolPage('/lick-practice').answer} />
           <p className="text-sm text-muted-foreground break-keep">
             릭은 짧은 연주 구절입니다. 한 마디를 듣고, 다음 한 마디에 그대로
             따라 쳐보세요.

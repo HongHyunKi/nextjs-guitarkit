@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { ToolAnswer } from '@/components/page-faq'
+import { getToolPage } from '@/lib/seo'
 import { BookOpen, ArrowLeft } from 'lucide-react'
 import { RootNoteSelector } from '@/components/root-note-selector'
 import { ChordTypeSelector } from '@/components/chord-type-selector'
@@ -50,6 +52,7 @@ export default function Page() {
             <ThemeToggle />
           </div>
         </div>
+        <ToolAnswer text={getToolPage('/chords').answer} />
 
         <div className="p-6 bg-card border border-border rounded-xl space-y-6">
           <div className="space-y-4">

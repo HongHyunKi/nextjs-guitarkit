@@ -145,7 +145,7 @@ export function createSession(
 export const QUIZ_HISTORY_KEY = 'guitarkit:quiz-history:v1'
 const recordSchema = z
   .object({
-    date: z.string().datetime(),
+    date: z.iso.datetime(),
     mode: z.enum(['note', 'reverse', 'interval', 'triad']),
     total: z.number().int().min(1).max(10),
     firstTry: z.number().int().min(0).max(10),

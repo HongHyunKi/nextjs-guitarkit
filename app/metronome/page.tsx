@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { ToolAnswer } from '@/components/page-faq'
+import { getToolPage } from '@/lib/seo'
 import { Timer } from 'lucide-react'
 import { Metronome } from '@/components/metronome'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -28,6 +30,7 @@ export default function Page() {
           </Link>
           <ThemeToggle />
         </div>
+        <ToolAnswer text={getToolPage('/metronome').answer} />
 
         <Metronome />
       </div>

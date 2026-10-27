@@ -7,7 +7,9 @@ import {
   BookOpen,
   Disc3,
   Gauge,
+  Library,
   Music,
+  Repeat,
   Timer,
   type LucideIcon,
 } from 'lucide-react'
@@ -33,12 +35,30 @@ const FEATURES: Feature[] = [
     accent: 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
   },
   {
+    id: 'scales',
+    icon: Library,
+    title: '스케일 사전',
+    description:
+      '170개 스케일의 구성음, 공식, 기타 지판 위치를 근음별로 찾아봅니다.',
+    href: '/scales',
+    accent: 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
+  },
+  {
     id: 'lick-practice',
     icon: Music,
     title: '릭 연습',
     description:
       '한 마디 듣고, 다음 한 마디에 따라 쳐보세요. TAB과 지판 가이드로 짧은 연주 구절을 익힙니다.',
     href: '/lick-practice',
+    accent: 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
+  },
+  {
+    id: 'scale-exercises',
+    icon: Repeat,
+    title: '스케일 시퀀스',
+    description:
+      '3연음 런, 4음 시퀀스, 3도 음정을 TAB과 지판으로 따라 치고 템포를 조금씩 올립니다.',
+    href: '/scale-exercises',
     accent: 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
   },
   {
