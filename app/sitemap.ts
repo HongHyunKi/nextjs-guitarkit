@@ -9,6 +9,7 @@ const ROUTES = [
   '/tuner',
   '/jam-track',
   '/lick-practice',
+  '/scale-exercises',
 ]
 
 export default function sitemap(): MetadataRoute.Sitemap {

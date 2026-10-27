@@ -8,6 +8,7 @@ import {
   Disc3,
   Gauge,
   Music,
+  Repeat,
   Timer,
   type LucideIcon,
 } from 'lucide-react'
@@ -39,6 +40,15 @@ const FEATURES: Feature[] = [
     description:
       '한 마디 듣고, 다음 한 마디에 따라 쳐보세요. TAB과 지판 가이드로 짧은 연주 구절을 익힙니다.',
     href: '/lick-practice',
+    accent: 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
+  },
+  {
+    id: 'scale-exercises',
+    icon: Repeat,
+    title: '스케일 시퀀스',
+    description:
+      '3연음 런, 4음 시퀀스, 3도 음정을 TAB과 지판으로 따라 치고 템포를 조금씩 올립니다.',
+    href: '/scale-exercises',
     accent: 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
   },
   {
