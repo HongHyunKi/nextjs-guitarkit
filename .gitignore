@@ -5,6 +5,7 @@
 .codex/
 .agents/
 .DS_Store
+.omc
 
 # 의존성
 /node_modules
