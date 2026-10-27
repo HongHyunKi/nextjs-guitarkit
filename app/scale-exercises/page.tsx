@@ -16,7 +16,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { Fretboard } from '@/components/fretboard'
 import { RootNoteSelector } from '@/components/root-note-selector'
 import { ScaleSelector } from '@/components/scale-selector'
-import { SCALE_LABELS, type ScaleType } from '@/lib/music-utils'
+import { SCALE_LABELS, getScaleNotes, type ScaleType } from '@/lib/music-utils'
 import {
   SCALE_EXERCISES,
   buildExercise,
@@ -32,13 +32,14 @@ const STRING_NAMES = ['e', 'B', 'G', 'D', 'A', 'E']
 export default function ScaleExercisesPage() {
   const [rootNote, setRootNote] = useState('C')
   const [scaleType, setScaleType] = useState<ScaleType>('major')
+  const [position, setPosition] = useState(0)
   const [exerciseId, setExerciseId] = useState<string>(SCALE_EXERCISES[0].id)
   const [speedUp, setSpeedUp] = useState<SpeedUp | null>(null)
   const exercise =
     SCALE_EXERCISES.find(e => e.id === exerciseId) ?? SCALE_EXERCISES[0]
   const grid = useMemo(
-    () => getThreeNpsGrid(rootNote, scaleType),
-    [rootNote, scaleType]
+    () => getThreeNpsGrid(rootNote, scaleType, position),
+    [rootNote, scaleType, position]
   )
   const notes = useMemo(() => buildExercise(grid, exercise), [grid, exercise])
   const { bpm, setBpm } = useBpmControl({
@@ -102,6 +103,33 @@ export default function ScaleExercisesPage() {
                 onScaleTypeChange={setScaleType}
               />
             </div>
+            {grid.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">시작 포지션</p>
+                <div className="flex flex-wrap gap-2" aria-label="시작 포지션">
+                  {getScaleNotes(rootNote, scaleType).map((note, p) => (
+                    <Button
+                      key={p}
+                      variant={position === p ? 'default' : 'outline'}
+                      aria-pressed={position === p}
+                      className={cn(
+                        'min-h-11',
+                        position === p &&
+                          'bg-accent-teal text-background hover:bg-accent-teal/90'
+                      )}
+                      onClick={() => setPosition(p)}
+                    >
+                      {p + 1} · {note} ·{' '}
+                      {getThreeNpsGrid(rootNote, scaleType, p)[0].fret}프렛
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  6번 줄에서 몇 번째 스케일 음으로 시작할지 고릅니다. 7개
+                  포지션을 이으면 지판 전체를 덮습니다.
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <p className="text-sm font-medium">연습</p>
               <div className="flex flex-wrap gap-2" aria-label="연습 종류">

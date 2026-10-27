@@ -7,19 +7,25 @@ import {
 
 export type ExercisePosition = { stringIndex: number; fret: number }
 
-// 6번 줄 근음부터 한 줄에 3음씩 18음. 7음 스케일이 아니면 빈 배열이다.
+// position(0~6)번째 스케일 음을 6번 줄에서 시작해 한 줄에 3음씩 18음.
+// 개방현 시작은 운지가 어색해 12프렛으로 올린다. 7음 스케일이 아니면 빈 배열이다.
 export function getThreeNpsGrid(
   rootNote: string,
-  scaleType: ScaleType
+  scaleType: ScaleType,
+  position = 0
 ): ExercisePosition[] {
   const pitches = getScaleNotes(rootNote, scaleType).map(getNoteIndex)
   if (pitches.length !== 7) return []
   const low = STANDARD_TUNING_MIDI[5]
-  const start = low + ((pitches[0] - (low % 12) + 12) % 12)
+  const start = low + ((pitches[position] - (low % 12) + 11) % 12) + 1
   return Array.from({ length: 18 }, (_, i) => {
     const stringIndex = 5 - Math.floor(i / 3)
+    const degree = position + i
     const midi =
-      start + 12 * Math.floor(i / 7) + ((pitches[i % 7] - pitches[0] + 12) % 12)
+      start +
+      12 * Math.floor(degree / 7) +
+      ((pitches[degree % 7] - pitches[0] + 12) % 12) -
+      ((pitches[position] - pitches[0] + 12) % 12)
     return { stringIndex, fret: midi - STANDARD_TUNING_MIDI[stringIndex] }
   })
 }

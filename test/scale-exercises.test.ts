@@ -93,6 +93,29 @@ test('3NPS grid is ascending, 3 per string and in scale for all roots', () => {
     }
 })
 
+test('all 7 positions start on their degree and stay playable', () => {
+  // C 메이저: C D E F G A B → 6번 줄 8 10 12 1 3 5 7, 개방현 E는 12프렛
+  expect(
+    [0, 1, 2, 3, 4, 5, 6].map(p => getThreeNpsGrid('C', 'major', p)[0].fret)
+  ).toEqual([8, 10, 12, 1, 3, 5, 7])
+  expect(getThreeNpsGrid('E', 'major')[0].fret).toBe(12)
+  for (const root of ROOTS)
+    for (const [scale, intervals] of Object.entries(SEVEN_NOTE))
+      for (let p = 0; p < 7; p++) {
+        const grid = getThreeNpsGrid(root, scale as ScaleType, p)
+        const midi = grid.map(n => tuning[n.stringIndex] + n.fret)
+        expect(grid[0].fret).toBeGreaterThanOrEqual(1)
+        expect(grid[0].fret).toBeLessThanOrEqual(12)
+        grid.forEach((n, i) => {
+          expect(n.stringIndex).toBe(5 - Math.floor(i / 3))
+          expect(n.fret).toBeGreaterThanOrEqual(0)
+          expect(n.fret).toBeLessThanOrEqual(22)
+          expect(midi[i] % 12).toBe((pc(root) + intervals[(p + i) % 7]) % 12)
+          if (i > 0) expect(midi[i]).toBeGreaterThan(midi[i - 1])
+        })
+      }
+})
+
 test('pentatonics have no 3NPS grid', () => {
   expect(getThreeNpsGrid('A', 'minor-pentatonic')).toEqual([])
   expect(buildExercise([], SCALE_EXERCISES[0])).toEqual([])
