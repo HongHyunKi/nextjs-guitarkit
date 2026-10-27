@@ -218,11 +218,7 @@ These should be tested as a pair.
 
    ```typescript
    export type ScaleType =
-     | 'major'
-     | 'minor'
-     | 'major-pentatonic'
-     | 'minor-pentatonic'
-     | 'dorian'
+     'major' | 'minor' | 'major-pentatonic' | 'minor-pentatonic' | 'dorian'
    ```
 
 3. **Add label**:
