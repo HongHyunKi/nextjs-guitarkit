@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { ToolAnswer } from '@/components/page-faq'
+import { getToolPage } from '@/lib/seo'
 import { MotionConfig } from 'framer-motion'
 import { Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -83,6 +85,7 @@ export default function ScaleExercisesPage() {
             </Link>
             <ThemeToggle />
           </header>
+          <ToolAnswer text={getToolPage('/scale-exercises').answer} />
 
           <section
             aria-label="연습 설정"

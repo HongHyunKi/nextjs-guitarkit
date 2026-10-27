@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { ToolAnswer } from '@/components/page-faq'
+import { getToolPage } from '@/lib/seo'
 import { Disc3 } from 'lucide-react'
 import { RootNoteSelector } from '@/components/root-note-selector'
 import { ScaleSelector } from '@/components/scale-selector'
@@ -35,6 +37,7 @@ export default function Page() {
           </Link>
           <ThemeToggle />
         </div>
+        <ToolAnswer text={getToolPage('/jam-track').answer} />
 
         <div className="p-4 md:p-6 bg-card border border-border rounded-xl space-y-5">
           <div>

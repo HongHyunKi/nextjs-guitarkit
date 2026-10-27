@@ -7,6 +7,7 @@ import {
   BookOpen,
   Disc3,
   Gauge,
+  Library,
   Music,
   Repeat,
   Timer,
@@ -31,6 +32,15 @@ const FEATURES: Feature[] = [
     description:
       '6현 지판 위에 스케일을 시각화하고, CAGED 시스템과 실시간 사운드로 연습합니다.',
     href: '/guitar-scale',
+    accent: 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
+  },
+  {
+    id: 'scales',
+    icon: Library,
+    title: '스케일 사전',
+    description:
+      '170개 스케일의 구성음, 공식, 기타 지판 위치를 근음별로 찾아봅니다.',
+    href: '/scales',
     accent: 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
   },
   {

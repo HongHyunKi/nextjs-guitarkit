@@ -1,15 +1,13 @@
 import type { MetadataRoute } from 'next'
 import { SITE_URL } from '@/lib/site'
+import { TOOL_PAGES } from '@/lib/seo'
+import { SCALE_PAGES } from '@/lib/scale-pages'
 
 const ROUTES = [
   '',
-  '/guitar-scale',
-  '/chords',
-  '/metronome',
-  '/tuner',
-  '/jam-track',
-  '/lick-practice',
-  '/scale-exercises',
+  ...TOOL_PAGES.map(p => p.path),
+  '/scales',
+  ...SCALE_PAGES.map(p => `/scales/${p.slug}`),
 ]
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -17,6 +15,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url: `${SITE_URL}${route}`,
     lastModified: new Date(),
     changeFrequency: 'weekly',
-    priority: route === '' ? 1 : 0.8,
+    priority: route === '' ? 1 : route.startsWith('/scales/') ? 0.6 : 0.8,
   }))
 }

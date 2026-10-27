@@ -21,6 +21,8 @@ import {
   DisplayMode,
 } from '@/lib/practice-settings'
 import Link from 'next/link'
+import { ToolAnswer } from '@/components/page-faq'
+import { getToolPage } from '@/lib/seo'
 import { Fretboard, GuitarTone } from '@/components/fretboard'
 import { RootNoteSelector } from '@/components/root-note-selector'
 import { ScaleSelector } from '@/components/scale-selector'
@@ -132,7 +134,7 @@ export default function Page() {
               </div>
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-balance">
-                  GuitarKit
+                  기타 스케일 연습
                 </h1>
                 <p className="text-muted-foreground text-sm">
                   스케일 연습을 더 쉽고 정확하게
@@ -141,6 +143,7 @@ export default function Page() {
             </Link>
             <ThemeToggle />
           </div>
+          <ToolAnswer text={getToolPage('/guitar-scale').answer} />
 
           {/* 자주 쓰는 설정은 지판 위에 둔다. */}
           {quizActive ? (
