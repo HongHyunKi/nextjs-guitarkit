@@ -28,6 +28,7 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
   generator: 'dev.hyunki',
   alternates: { canonical: '/' },
+  verification: { google: 'g332L-Sdg95Hej2oLCQ0bn1_PEgEScuTuYSYB4poL8A' },
   icons: {
     icon: [
       {
